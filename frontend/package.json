@@ -1,0 +1,30 @@
+{
+  "name": "planforge-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@milkdown/core": "^7.5.1",
+    "@milkdown/preset-commonmark": "^7.5.1",
+    "@milkdown/prose": "^7.5.1",
+    "@milkdown/vue": "^7.5.1",
+    "@pinia/nuxt": "^0.5.5",
+    "nuxt": "^3.14.0",
+    "pinia": "^2.2.4",
+    "vue": "^3.5.11"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^1.6.0",
+    "@nuxtjs/tailwindcss": "^6.12.1",
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2",
+    "vue-tsc": "^3.2.6"
+  }
+}
