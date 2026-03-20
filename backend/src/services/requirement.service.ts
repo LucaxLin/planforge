@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Requirement, RequirementAnalysis, Session, Question, Solution, AIConfig } from '../types/index.js';
+import type { Requirement, RequirementAnalysis, Session, Question, Solution, AIConfig, Message } from '../types/index.js';
 import { aiService } from './ai.service.js';
 import { analyzerSystemPrompt, analyzerUserPrompt } from '../prompts/analyzer.prompt.js';
 import { questionSystemPrompt, questionUserPrompt } from '../prompts/question.prompt.js';
@@ -9,96 +9,79 @@ import logger from '../utils/logger.js';
 class RequirementService {
   private requirements: Map<string, Requirement> = new Map();
   private sessions: Map<string, Session> = new Map();
+  private conversationHistory: Map<string, Message[]> = new Map();
 
-  async analyzeRequirement(content: string, aiConfig: AIConfig): Promise<RequirementAnalysis> {
-    logger.info('Starting requirement analysis', { contentLength: content.length });
+  async chat(requirementId: string, userMessage: string, aiConfig: AIConfig): Promise<string> {
+    logger.info('Starting chat', { requirementId, userMessageLength: userMessage.length });
 
     aiService.configure(aiConfig);
 
-    const response = await aiService.chat(
-      [{ role: 'user', content: analyzerUserPrompt(content) }],
-      analyzerSystemPrompt
-    );
+    let history = this.conversationHistory.get(requirementId) || [];
+    const requirement = this.requirements.get(requirementId);
 
-    try {
-      const analysis = JSON.parse(response) as RequirementAnalysis;
-      logger.info('Requirement analysis completed', { 
-        entityCount: analysis.entities.length,
-        confidence: analysis.confidence 
-      });
-      return analysis;
-    } catch (error) {
-      logger.error('Failed to parse analysis response', { error });
-      throw new Error('Failed to parse AI response');
-    }
-  }
+    history.push({ role: 'user', content: userMessage });
 
-  async generateQuestions(
-    requirement: string,
-    analysis?: RequirementAnalysis,
-    aiConfig?: AIConfig
-  ): Promise<Question[]> {
-    logger.info('Generating clarifying questions');
+    const messages: Message[] = [
+      { role: 'system', content: analyzerSystemPrompt }
+    ];
 
-    if (!aiConfig) {
-      const config = aiService.getConfig();
-      if (!config) {
-        throw new Error('AI not configured');
-      }
-      aiConfig = config;
-    } else {
-      aiService.configure(aiConfig);
+    if (requirement) {
+      messages.push({ role: 'user', content: analyzerUserPrompt(requirement.content) });
     }
 
-    const analysisStr = analysis ? JSON.stringify(analysis, null, 2) : undefined;
-    const response = await aiService.chat(
-      [{ role: 'user', content: questionUserPrompt(requirement, analysisStr) }],
-      questionSystemPrompt
-    );
+    messages.push(...history);
 
-    try {
-      const questions = JSON.parse(response) as Question[];
-      logger.info('Questions generated', { count: questions.length });
-      return questions;
-    } catch (error) {
-      logger.error('Failed to parse questions response', { error });
-      throw new Error('Failed to parse AI response');
-    }
+    logger.info('Sending chat request', { 
+      requirementId, 
+      messageCount: messages.length,
+      historyLength: history.length 
+    });
+
+    const response = await aiService.chat(messages);
+
+    logger.info('Chat response received', { 
+      requirementId, 
+      responseLength: response.length 
+    });
+
+    history.push({ role: 'assistant', content: response });
+    this.conversationHistory.set(requirementId, history);
+
+    return response;
   }
 
   async generateSolution(
-    requirement: string,
-    analysis?: RequirementAnalysis,
-    answers?: string,
-    aiConfig?: AIConfig
+    requirementId: string,
+    aiConfig: AIConfig
   ): Promise<Solution> {
-    logger.info('Generating implementation solution');
+    logger.info('Generating implementation solution', { requirementId });
 
-    if (!aiConfig) {
-      const config = aiService.getConfig();
-      if (!config) {
-        throw new Error('AI not configured');
-      }
-      aiConfig = config;
-    } else {
-      aiService.configure(aiConfig);
+    aiService.configure(aiConfig);
+
+    const requirement = this.requirements.get(requirementId);
+    if (!requirement) {
+      throw new Error('Requirement not found');
     }
 
-    const analysisStr = analysis ? JSON.stringify(analysis, null, 2) : undefined;
-    const content = await aiService.chat(
-      [{ role: 'user', content: generatorUserPrompt(requirement, analysisStr, answers) }],
-      generatorSystemPrompt
-    );
+    const history = this.conversationHistory.get(requirementId) || [];
+    const conversationSummary = history.map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`).join('\n\n');
+
+    const messages = [
+      { role: 'system', content: generatorSystemPrompt },
+      { role: 'user', content: generatorUserPrompt(requirement.content, undefined, conversationSummary) }
+    ];
+
+    const content = await aiService.chat(messages);
 
     const solution: Solution = {
       id: uuidv4(),
-      requirementId: '',
+      requirementId,
       content,
       sections: this.parseMarkdownToSections(content),
       generatedAt: new Date(),
     };
 
-    logger.info('Solution generated', { solutionId: solution.id });
+    logger.info('Solution generated', { solutionId: solution.id, requirementId });
     return solution;
   }
 
@@ -139,6 +122,7 @@ class RequirementService {
       updatedAt: new Date(),
     };
     this.requirements.set(requirement.id, requirement);
+    this.conversationHistory.set(requirement.id, []);
     logger.info('Requirement created', { id: requirement.id, title });
     return requirement;
   }
@@ -160,35 +144,18 @@ class RequirementService {
     return updated;
   }
 
-  createSession(requirementId: string): Session {
-    const session: Session = {
-      id: uuidv4(),
-      requirementId,
-      messages: [],
-      status: 'active',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.sessions.set(session.id, session);
-    logger.info('Session created', { sessionId: session.id, requirementId });
-    return session;
+  getConversationHistory(requirementId: string): Message[] {
+    return this.conversationHistory.get(requirementId) || [];
   }
 
-  getSession(id: string): Session | undefined {
-    return this.sessions.get(id);
+  updateConversationHistory(requirementId: string, history: Message[]): Message[] {
+    this.conversationHistory.set(requirementId, history);
+    return history;
   }
 
-  addMessageToSession(sessionId: string, message: { role: 'user' | 'assistant'; content: string }): Session | undefined {
-    const session = this.sessions.get(sessionId);
-    if (!session) return undefined;
-
-    session.messages.push({
-      role: message.role,
-      content: message.content,
-    });
-    session.updatedAt = new Date();
-    this.sessions.set(sessionId, session);
-    return session;
+  clearConversationHistory(requirementId: string): void {
+    this.conversationHistory.delete(requirementId);
+    logger.info('Conversation history cleared', { requirementId });
   }
 }
 

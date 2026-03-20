@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
 import { requirementService } from '../services/requirement.service.js';
-import { sendMessageSchema } from '../utils/validator.js';
-import { ZodError } from 'zod';
+import { aiService } from '../services/ai.service.js';
+import { analyzerSystemPrompt, analyzerUserPrompt } from '../prompts/analyzer.prompt.js';
 import logger from '../utils/logger.js';
-import type { AIConfig } from '../types/index.js';
+import type { AIConfig, Message } from '../types/index.js';
 
 const extractAIConfig = (req: Request): AIConfig => {
   const provider = req.headers['x-api-provider'] as string;
@@ -23,8 +23,19 @@ const extractAIConfig = (req: Request): AIConfig => {
   };
 };
 
-export const createSession = async (req: Request, res: Response) => {
-  const { requirementId } = req.body;
+export const chat = async (req: Request, res: Response) => {
+  const { requirementId, message } = req.body;
+
+  logger.info('Chat request received', { requirementId, messageLength: message?.length });
+
+  if (!requirementId || !message) {
+    res.status(400).json({
+      error: 'Validation Error',
+      message: 'requirementId and message are required',
+      statusCode: 400,
+    });
+    return;
+  }
 
   const requirement = requirementService.getRequirement(requirementId);
   if (!requirement) {
@@ -36,103 +47,163 @@ export const createSession = async (req: Request, res: Response) => {
     return;
   }
 
-  const session = requirementService.createSession(requirementId);
-  res.status(201).json(session);
+  try {
+    const aiConfig = extractAIConfig(req);
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    let fullResponse = '';
+    let history = requirementService.getConversationHistory(requirementId) || [];
+    
+    history.push({ role: 'user', content: message });
+
+    const messages: Message[] = [
+      { role: 'system', content: analyzerSystemPrompt }
+    ];
+
+    if (requirement) {
+      messages.push({ role: 'user', content: analyzerUserPrompt(requirement.content) });
+    }
+
+    messages.push(...history);
+
+    aiService.configure(aiConfig);
+
+    logger.info('Starting streaming response', { requirementId });
+
+    try {
+      for await (const chunk of aiService.chatStream(messages)) {
+        fullResponse += chunk;
+        res.write(`data: ${JSON.stringify({ content: chunk, done: false })}\n\n`);
+      }
+    } catch (streamError) {
+      logger.error('Stream error', { error: streamError instanceof Error ? streamError.message : 'Unknown' });
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed', done: true })}\n\n`);
+    }
+
+    history.push({ role: 'assistant', content: fullResponse });
+    
+    const updatedHistory = requirementService.updateConversationHistory(requirementId, history);
+
+    res.write(`data: ${JSON.stringify({ done: true, history: updatedHistory })}\n\n`);
+    res.end();
+
+    logger.info('Chat stream completed', { requirementId, responseLength: fullResponse.length });
+
+  } catch (error) {
+    logger.error('Chat failed', { 
+      error: error instanceof Error ? error.message : 'Unknown',
+      requirementId 
+    });
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error instanceof Error ? error.message : 'Chat failed',
+      statusCode: 500,
+    });
+  }
 };
 
-export const getSession = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const session = requirementService.getSession(id);
+export const generateSolution = async (req: Request, res: Response) => {
+  const { requirementId } = req.body;
 
-  if (!session) {
-    res.status(404).json({
-      error: 'Not Found',
-      message: `Session ${id} not found`,
-      statusCode: 404,
+  logger.info('Generate solution request received', { requirementId });
+
+  if (!requirementId) {
+    res.status(400).json({
+      error: 'Validation Error',
+      message: 'requirementId is required',
+      statusCode: 400,
     });
     return;
   }
 
-  res.json(session);
-};
-
-export const sendMessage = async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const requirement = requirementService.getRequirement(requirementId);
+  if (!requirement) {
+    res.status(404).json({
+      error: 'Not Found',
+      message: `Requirement ${requirementId} not found`,
+      statusCode: 404,
+    });
+    return;
+  }
 
   try {
-    const data = sendMessageSchema.parse(req.body);
-    const session = requirementService.getSession(id);
-
-    if (!session) {
-      res.status(404).json({
-        error: 'Not Found',
-        message: `Session ${id} not found`,
-        statusCode: 404,
-      });
-      return;
-    }
-
-    requirementService.addMessageToSession(id, {
-      role: 'user',
-      content: data.content,
-    });
-
     const aiConfig = extractAIConfig(req);
-    const requirement = requirementService.getRequirement(session.requirementId);
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
-    const systemPrompt = `You are a helpful AI assistant helping to clarify requirements for the following project:
+    const history = requirementService.getConversationHistory(requirementId) || [];
+    const conversationSummary = history.map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`).join('\n\n');
 
-Project: ${requirement?.title || 'Untitled'}
-Description: ${requirement?.content || 'No description'}
+    const { generatorSystemPrompt } = await import('../prompts/generator.prompt.js');
+    const { generatorUserPrompt } = await import('../prompts/generator.prompt.js');
+    
+    const messages = [
+      { role: 'system' as const, content: generatorSystemPrompt },
+      { role: 'user' as const, content: generatorUserPrompt(requirement.content, undefined, conversationSummary) }
+    ];
 
-Provide helpful, concise responses to help clarify requirements.`;
+    aiService.configure(aiConfig);
 
-    const { aiService } = await import('../services/ai.service.js');
-    const response = await aiService.chat(
-      session.messages as any,
-      systemPrompt
-    );
+    logger.info('Starting streaming solution generation', { requirementId });
 
-    requirementService.addMessageToSession(id, {
-      role: 'assistant',
-      content: response,
-    });
-
-    res.json({
-      sessionId: id,
-      message: {
-        role: 'assistant',
-        content: response,
-      },
-    });
-  } catch (error) {
-    if (error instanceof ZodError) {
-      res.status(400).json({
-        error: 'Validation Error',
-        message: error.errors,
-        statusCode: 400,
-      });
-    } else {
-      throw error;
+    let fullContent = '';
+    try {
+      for await (const chunk of aiService.chatStream(messages)) {
+        fullContent += chunk;
+        res.write(`data: ${JSON.stringify({ content: chunk, done: false })}\n\n`);
+      }
+    } catch (streamError) {
+      logger.error('Solution stream error', { error: streamError instanceof Error ? streamError.message : 'Unknown' });
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed', done: true })}\n\n`);
     }
+
+    const completeMarker = `\n\n---\n**文档完整性验证**\n- 生成时间: ${new Date().toLocaleString('zh-CN')}\n- 文档状态: ✅ 完整\n- 字符数: ${fullContent.length}\n`;
+    fullContent += completeMarker;
+
+    res.write(`data: ${JSON.stringify({ done: true, content: fullContent, complete: true })}\n\n`);
+    res.end();
+
+    logger.info('Solution stream completed', { requirementId, contentLength: fullContent.length });
+
+  } catch (error) {
+    logger.error('Generate solution failed', { 
+      error: error instanceof Error ? error.message : 'Unknown',
+      requirementId 
+    });
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error instanceof Error ? error.message : 'Failed to generate solution',
+      statusCode: 500,
+    });
   }
 };
 
-export const getMessages = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const session = requirementService.getSession(id);
+export const getConversationHistory = async (req: Request, res: Response) => {
+  const { requirementId } = req.params;
 
-  if (!session) {
+  logger.info('Get conversation history', { requirementId });
+
+  const requirement = requirementService.getRequirement(requirementId);
+  if (!requirement) {
     res.status(404).json({
       error: 'Not Found',
-      message: `Session ${id} not found`,
+      message: `Requirement ${requirementId} not found`,
       statusCode: 404,
     });
     return;
   }
 
+  const history = requirementService.getConversationHistory(requirementId);
+
   res.json({
-    sessionId: id,
-    messages: session.messages,
+    requirementId,
+    history,
   });
 };

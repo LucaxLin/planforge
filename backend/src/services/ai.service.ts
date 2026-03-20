@@ -52,7 +52,7 @@ export class AIService {
         model: this.config.model,
         messages: allMessages as OpenAI.Chat.ChatCompletionMessageParam[],
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 32000,
       });
 
       const response = completion.choices[0]?.message?.content || '';
@@ -71,11 +71,10 @@ export class AIService {
     }
   }
 
-  async chatStream(
-    messages: Message[], 
-    systemPrompt?: string,
-    onChunk: (chunk: string) => void
-  ): Promise<string> {
+  async *chatStream(
+    messages: Message[],
+    systemPrompt?: string
+  ): AsyncGenerator<string, void, unknown> {
     if (!this.client || !this.config) {
       throw new Error('AI service not configured');
     }
@@ -96,25 +95,20 @@ export class AIService {
         model: this.config.model,
         messages: allMessages as OpenAI.Chat.ChatCompletionMessageParam[],
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 32000,
         stream: true,
       });
 
-      let fullResponse = '';
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         if (content) {
-          fullResponse += content;
-          onChunk(content);
+          yield content;
         }
       }
 
       logger.info('Streaming AI API call completed', { 
-        provider: this.config.provider,
-        responseLength: fullResponse.length 
+        provider: this.config.provider 
       });
-
-      return fullResponse;
     } catch (error) {
       logger.error('Streaming AI API call failed', { 
         error: error instanceof Error ? error.message : 'Unknown error',

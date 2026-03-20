@@ -1,17 +1,15 @@
 import { Router } from 'express';
 import {
-  createSession,
-  getSession,
-  sendMessage,
-  getMessages,
+  chat,
+  generateSolution,
+  getConversationHistory,
 } from '../controllers/chat.controller.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 
 const router = Router();
 
-router.post('/', asyncHandler(createSession));
-router.get('/:id', asyncHandler(getSession));
-router.post('/:id/messages', asyncHandler(sendMessage));
-router.get('/:id/messages', asyncHandler(getMessages));
+router.post('/chat', asyncHandler(chat));
+router.post('/generate-solution', asyncHandler(generateSolution));
+router.get('/history/:requirementId', asyncHandler(getConversationHistory));
 
 export default router;

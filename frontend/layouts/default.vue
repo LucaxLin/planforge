@@ -41,7 +41,7 @@
       </div>
     </header>
 
-    <main class="flex-1">
+    <main class="flex-1 overflow-y-auto">
       <slot />
     </main>
 

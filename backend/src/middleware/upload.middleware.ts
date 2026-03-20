@@ -8,11 +8,11 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   const allowedMimes = [
     'text/plain',
     'text/markdown',
-    'application/pdf',
+    'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
 
-  const allowedExts = ['.txt', '.md', '.pdf', '.docx'];
+  const allowedExts = ['.txt', '.md', '.doc', '.docx'];
 
   const ext = path.extname(file.originalname).toLowerCase();
   const isValidExt = allowedExts.includes(ext);
@@ -21,7 +21,7 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   if (isValidExt || isValidMime) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Allowed: .txt, .md, .pdf, .docx'));
+    cb(new Error('Invalid file type. Allowed: .txt, .md, .doc, .docx'));
   }
 };
 

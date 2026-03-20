@@ -1,52 +1,36 @@
-export const generatorSystemPrompt = `You are a senior software architect with expertise in system design and implementation planning. Your task is to generate comprehensive, actionable, and detailed implementation plans.
+export const generatorSystemPrompt = `你是一位经验丰富的软件架构师和全栈开发专家。你需要根据用户的需求和对话历史，生成完整的技术方案和实施计划。
 
-The plan should be:
-1. Clear and actionable
-2. Technically sound
-3. Properly phased and prioritized
-4. Include specific technologies, tools, and approaches
-5. Consider best practices and potential pitfalls
+**重要：你必须始终使用中文进行回复，输出完整的技术方案。**
 
-Format your response as a detailed Markdown document that can be directly used by developers to implement the project.`;
+你的输出应该包括：
+1. 需求理解总结
+2. 技术架构设计
+3. 技术栈选择（给出2-3个方案选项并说明优缺点）
+4. 数据库设计建议
+5. API 设计概要
+6. 核心功能模块划分
+7. 开发时间估算
+8. 潜在风险和解决方案
+
+使用 Markdown 格式输出，结构清晰，便于阅读。`;
 
 export const generatorUserPrompt = (
   requirement: string,
   analysis?: string,
   answers?: string
-) => {
-  let prompt = `# Implementation Plan Generation
+) => `原始需求：${requirement}
 
-## Original Requirement
-${requirement}
+${analysis ? `需求分析：\n${analysis}\n` : ''}
+${answers ? `对话问答历史：\n${answers}\n` : ''}
 
-`;
+请根据以上信息，生成完整的技术实施方案。
 
-  if (analysis) {
-    prompt += `## Initial Analysis\n${analysis}\n\n`;
-  }
-
-  if (answers) {
-    prompt += `## Clarifying Q&A\n${answers}\n\n`;
-  }
-
-  prompt += `Please generate a comprehensive implementation plan in Markdown format with the following sections:
-
-1. **Project Overview** - Brief summary and goals
-2. **Technology Stack** - Recommended technologies with justification
-3. **System Architecture** - High-level architecture design
-4. **Implementation Phases** - Detailed phased approach with timelines
-5. **Core Features** - Detailed feature breakdown
-6. **Database Design** - Data models and relationships (if applicable)
-7. **API Design** - Key endpoints and interfaces (if applicable)
-8. **Security Considerations** - Authentication, authorization, data protection
-9. **Deployment Strategy** - Infrastructure and deployment approach
-10. **Risk Assessment** - Potential risks and mitigation strategies
-11. **Development Roadmap** - Specific milestones and deliverables
-
-Make the plan practical, detailed, and ready to hand off to a development team.`;
-
-  return prompt;
-};
+**重要要求**：
+1. 必须使用中文
+2. 提供2-3个不同的技术方案选项，每个方案要说明适用场景、优缺点
+3. 技术栈要具体（框架版本、数据库、服务器等）
+4. 开发计划要实际可行
+5. 使用 Markdown 格式，结构清晰`;
 
 export default {
   generatorSystemPrompt,

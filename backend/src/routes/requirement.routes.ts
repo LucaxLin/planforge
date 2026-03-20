@@ -12,7 +12,7 @@ import upload from '../middleware/upload.middleware.js';
 
 const router = Router();
 
-router.post('/', asyncHandler(createRequirement));
+router.post('/', upload.single('file'), asyncHandler(createRequirement));
 router.get('/:id', asyncHandler(getRequirement));
 router.put('/:id', asyncHandler(updateRequirement));
 router.delete('/:id', asyncHandler(deleteRequirement));
