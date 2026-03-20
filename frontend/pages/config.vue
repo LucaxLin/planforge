@@ -147,11 +147,11 @@ const errorMessage = ref('')
 
 const minimaxModels = ['MiniMax-M2.7', 'MiniMax-M2.5']
 const zaiModels = ['GLM-5', 'GLM-4.7', 'GLM-4.6']
-const customModels = []
+const customModels: string[] = []
 
 onMounted(() => {
   form.value = {
-    provider: configStore.provider === 'openai' || configStore.provider === 'claude' ? 'custom' : configStore.provider as any,
+    provider: configStore.provider as any,
     apiKey: configStore.apiKey,
     baseURL: configStore.baseURL || '',
     model: configStore.model,
