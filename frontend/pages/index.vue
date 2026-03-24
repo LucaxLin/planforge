@@ -1,304 +1,313 @@
 <template>
-  <div class="h-full flex flex-col">
-    <div v-if="!hasApiKey" class="flex-1 flex items-center justify-center px-4">
-      <div class="text-center max-w-md">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl tech-gradient flex items-center justify-center">
-          <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-          </svg>
-        </div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-          配置您的 AI 提供商
-        </h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-          要开始使用，请先在设置页面配置您的 AI API 密钥
-        </p>
-        <NuxtLink
-          to="/config"
-          class="inline-flex items-center px-5 py-2.5 tech-gradient text-white font-medium rounded-lg hover:opacity-90 transition-all duration-200"
+  <div class="h-full flex">
+    <aside class="w-64 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-900 hidden lg:flex">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <button
+          @click="startNewConversation"
+          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 tech-gradient text-white rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
         >
-          前往设置
-          <svg class="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-        </NuxtLink>
+          新建对话
+        </button>
       </div>
-    </div>
 
-    <div v-else class="h-full flex flex-col">
-      <div v-if="!conversationStore.hasActiveConversation" class="flex-1 flex items-center justify-center px-4">
-        <div class="w-full max-w-2xl">
-          <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              描述您的需求
-            </h2>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              AI 将帮助您分析和规划项目需求
-            </p>
-          </div>
-          
-          <div class="space-y-3">
-            <div class="relative">
-              <textarea
-                v-model="requirementContent"
-                rows="4"
-                class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white resize-none transition-all duration-200 text-sm"
-                placeholder="请详细描述您的项目需求，例如：我想搭建一个支持多商户入驻的电商平台..."
-              ></textarea>
-              <div class="absolute bottom-2 right-3 text-xs text-gray-400">
-                {{ requirementContent.length }} 字符
-              </div>
-            </div>
-            
-            <div
-              class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-200 cursor-pointer group"
-              @click="triggerFileSelect"
-            >
-              <input
-                ref="fileInput"
-                type="file"
-                class="hidden"
-                accept=".md,.txt,.doc,.docx"
-                @change="handleFileSelect"
-              />
-              <div v-if="selectedFile" class="flex items-center justify-center space-x-2">
-                <svg class="h-4 w-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="text-sm text-gray-700 dark:text-gray-200">{{ selectedFile.name }}</span>
-                <button @click.stop="removeFile" class="text-red-600 dark:text-red-400 hover:text-red-500">
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div v-else class="text-gray-500 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                <svg class="mx-auto h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="text-xs">点击上传文件</p>
-              </div>
-            </div>
-
+      <div class="flex-1 overflow-y-auto">
+        <div class="p-2 space-y-1">
+          <div
+            v-for="session in conversationStore.sortedSessions"
+            :key="session.id"
+            @click="loadConversation(session.id)"
+            class="group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+            :class="conversationStore.currentSessionId === session.id
+              ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'"
+          >
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span class="flex-1 truncate text-sm">{{ session.title }}</span>
             <button
-              @click="startConversation"
-              :disabled="isLoading || (!requirementContent.trim() && !selectedFile)"
-              class="w-full px-4 py-3 tech-gradient text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+              @click.stop="deleteConversation(session.id)"
+              class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
             >
-              <svg v-if="isLoading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg class="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              <span>{{ isLoading ? '启动对话中...' : '开始对话' }}</span>
             </button>
           </div>
+
+          <div v-if="conversationStore.sortedSessions.length === 0" class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
+            暂无对话记录
+          </div>
         </div>
       </div>
 
-      <div v-else class="h-full flex flex-col">
-        <div class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg tech-gradient flex items-center justify-center">
-              <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <div>
-              <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ conversationStore.currentConversation?.title }}
-              </h2>
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ conversationStore.messageCount }} 条消息
-              </p>
-            </div>
-          </div>
+      <div class="p-3 border-t border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-2">
+          <NuxtLink to="/config" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            设置
+          </NuxtLink>
+          <NuxtLink to="/documents" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            文档
+          </NuxtLink>
+        </div>
+      </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+      <header class="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 lg:hidden">
+        <button @click="showMobileSidebar = true" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <h1 class="font-medium text-gray-900 dark:text-white">{{ conversationStore.currentSession?.title || '新对话' }}</h1>
+        <NuxtLink to="/documents" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </NuxtLink>
+      </header>
+
+      <div class="hidden lg:flex lg:items-center lg:justify-between lg:px-6 lg:h-14 lg:border-b lg:border-gray-200 dark:lg:border-gray-700 lg:bg-white dark:lg:bg-gray-900">
+        <h1 class="text-lg font-semibold text-gray-900 dark:text-white truncate pr-4">
+          {{ conversationStore.currentSession?.title || '新对话' }}
+        </h1>
+        <div class="flex items-center gap-2 flex-shrink-0">
           <button
-            @click="resetConversation"
-            class="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all duration-200"
+            v-if="conversationStore.currentMessages.length > 0"
+            @click="generateDocument"
+            :disabled="isGeneratingDoc || !hasApiKey"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+            :class="hasApiKey
+              ? 'tech-gradient text-white hover:opacity-90'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'"
           >
-            新建对话
+            {{ isGeneratingDoc ? '生成中...' : '生成完整方案' }}
           </button>
         </div>
+      </div>
 
-        <div ref="chatContainer" class="flex-1 overflow-y-auto chat-scroll p-4 space-y-4">
-          <div
-            v-for="(msg, index) in conversationStore.currentConversation?.messages"
-            :key="index"
-            :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'"
-          >
-            <div v-if="msg.role === 'user'" class="message-bubble message-bubble-user max-w-[80%]">
-              <p class="text-sm whitespace-pre-wrap">{{ msg.content }}</p>
+      <div ref="chatContainer" class="flex-1 overflow-y-auto chat-scroll">
+        <div class="max-w-3xl mx-auto px-4 py-6">
+          <div v-if="conversationStore.currentMessages.length === 0" class="flex flex-col items-center justify-center h-full text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6">
+              <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
             </div>
-            
-            <div v-else class="max-w-[80%]">
-              <div class="flex items-start gap-2">
-                <div class="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                  <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-sm p-3">
-                  <div class="markdown-content text-sm" v-html="renderMarkdown(msg.content)"></div>
-                  <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      @click="copyToClipboard(msg.content)"
-                      class="text-xs text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      复制
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              有什么可以帮您的？
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-8">
+              描述您的项目需求，我可以帮您分析并生成详细的技术实现方案
+            </p>
+            <div class="grid grid-cols-2 gap-2 max-w-md">
+              <button
+                v-for="example in examples"
+                :key="example"
+                @click="startWithExample(example)"
+                class="px-4 py-2.5 text-sm text-left bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors text-gray-700 dark:text-gray-300"
+              >
+                {{ example }}
+              </button>
             </div>
           </div>
 
-          <div v-if="conversationStore.isLoading && currentAssistantMessage" class="flex justify-start">
-            <div class="max-w-[80%]">
-              <div class="flex items-start gap-2">
-                <div class="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                  <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-sm p-3">
-                  <div class="markdown-content text-sm" v-html="renderMarkdown(currentAssistantMessage)"></div>
+          <div v-else class="space-y-6">
+            <div
+              v-for="(message, index) in conversationStore.currentMessages"
+              :key="index"
+              class="flex gap-3"
+              :class="message.role === 'user' ? 'flex-row-reverse' : ''"
+            >
+              <div
+                class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                :class="message.role === 'user'
+                  ? 'bg-indigo-600'
+                  : 'bg-gradient-to-br from-indigo-500 to-purple-600'"
+              >
+                <svg v-if="message.role === 'user'" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <svg v-else class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div class="flex-1 max-w-2xl">
+                <div
+                  class="px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                  :class="message.role === 'user'
+                    ? 'bg-indigo-600 text-white rounded-tr-sm'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm'"
+                >
+                  <div v-if="message.role === 'assistant'" class="markdown-content" v-html="renderMarkdown(message.content)"></div>
+                  <div v-else>{{ message.content }}</div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="conversationStore.isLoading && !currentAssistantMessage" class="flex justify-start">
-            <div class="max-w-[80%]">
-              <div class="flex items-start gap-2">
-                <div class="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                  <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div class="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-sm p-3">
-                  <div class="typing-indicator text-gray-400">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+            <div v-if="conversationStore.isLoading" class="flex gap-3">
+              <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div class="flex-1 max-w-2xl">
+                <div class="bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm">
+                  <div class="flex gap-1">
+                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="border-t border-gray-200 dark:border-gray-700 p-3 space-y-2 bg-white dark:bg-gray-800">
-          <div v-if="conversationStore.messageCount > 0" class="flex gap-2">
+      <div class="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900">
+        <div class="max-w-3xl mx-auto">
+          <div v-if="!hasApiKey" class="text-center py-3">
+            <span class="text-sm text-gray-500 dark:text-gray-400">请先</span>
+            <NuxtLink to="/config" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mx-1">配置 AI</NuxtLink>
+            <span class="text-sm text-gray-500 dark:text-gray-400">开始对话</span>
+          </div>
+          <div v-else class="flex gap-3">
             <input
               v-model="userInput"
               type="text"
-              placeholder="输入您的回答..."
-              class="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white transition-all duration-200 text-sm"
-              @keyup.enter="sendMessage"
+              @keydown.enter="sendMessage"
               :disabled="conversationStore.isLoading"
+              placeholder="输入您的需求..."
+              class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
             <button
               @click="sendMessage"
-              :disabled="conversationStore.isLoading || !userInput.trim()"
-              class="px-4 py-2 tech-gradient text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-1"
+              :disabled="!userInput.trim() || conversationStore.isLoading"
+              class="px-5 py-3 tech-gradient text-white rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              发送
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <Teleport to="body">
+      <div
+        v-if="showMobileSidebar"
+        class="fixed inset-0 z-50 lg:hidden"
+      >
+        <div class="absolute inset-0 bg-black/50" @click="showMobileSidebar = false"></div>
+        <aside class="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-900 flex flex-col">
+          <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <span class="font-semibold text-gray-900 dark:text-white">对话历史</span>
+            <button @click="showMobileSidebar = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+              <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-
-          <button
-            v-if="conversationStore.messageCount > 0"
-            @click="generateSolution"
-            :disabled="conversationStore.isGeneratingSolution"
-            class="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 text-sm"
-          >
-            <svg v-if="conversationStore.isGeneratingSolution" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span>{{ conversationStore.isGeneratingSolution ? '生成方案中...' : '生成完整技术方案' }}</span>
-          </button>
-        </div>
+          <div class="p-4">
+            <button
+              @click="startNewConversation(); showMobileSidebar = false"
+              class="w-full flex items-center justify-center gap-2 px-4 py-2.5 tech-gradient text-white rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              新建对话
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto px-2">
+            <div
+              v-for="session in conversationStore.sortedSessions"
+              :key="session.id"
+              @click="loadConversation(session.id); showMobileSidebar = false"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm mb-1"
+              :class="conversationStore.currentSessionId === session.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : ''"
+            >
+              {{ session.title }}
+            </div>
+          </div>
+          <div class="p-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+            <NuxtLink
+              to="/config"
+              @click="showMobileSidebar = false"
+              class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              AI 设置
+            </NuxtLink>
+            <NuxtLink
+              to="/documents"
+              @click="showMobileSidebar = false"
+              class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              我的文档
+            </NuxtLink>
+          </div>
+        </aside>
       </div>
+    </Teleport>
 
-      <div v-if="error" class="fixed bottom-16 left-4 right-4 z-50">
-        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2">
-          <svg class="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
-          <button @click="error = ''" class="ml-auto text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showSuccessToast" class="fixed top-16 right-4 z-50 animate-fade-in">
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-3 flex items-center gap-2 shadow-lg border border-green-200 dark:border-green-800">
-        <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <Teleport to="body">
+      <div v-if="showDocToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-gray-900 dark:bg-gray-800 text-white rounded-lg shadow-lg flex items-center gap-3 text-sm">
+        <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        <div>
-          <p class="text-sm font-medium text-gray-900 dark:text-white">任务创建成功</p>
-          <p class="text-xs text-gray-600 dark:text-gray-400">请到个人中心查看文档</p>
-        </div>
-        <NuxtLink to="/documents" class="ml-2 px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors">
-          查看
-        </NuxtLink>
+        <span>{{ docToastMessage }}</span>
+        <NuxtLink to="/documents" class="text-indigo-400 hover:underline">查看</NuxtLink>
       </div>
-    </div>
-
-    <div v-if="isLoading && !conversationStore.hasActiveConversation" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4 text-center">
-        <div class="w-12 h-12 mx-auto mb-3 rounded-xl tech-gradient flex items-center justify-center animate-pulse">
-          <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-        </div>
-        <p class="text-base font-medium text-gray-900 dark:text-white mb-1">正在启动对话</p>
-        <p class="text-sm text-gray-500 dark:text-gray-400">AI 正在分析您的需求...</p>
-      </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  layout: 'default',
-  keepalive: true,
-})
-
-import { ref, computed, nextTick, onMounted, onActivated } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useConfigStore } from '~/stores/config'
-import { useDocumentStore } from '~/stores/documents'
 import { useConversationStore } from '~/stores/conversation'
+import { useDocumentStore } from '~/stores/documents'
 import { marked } from 'marked'
 
-const configStore = useConfigStore()
-const documentStore = useDocumentStore()
-const conversationStore = useConversationStore()
-const config = useRuntimeConfig()
+definePageMeta({
+  layout: 'default',
+})
 
-const requirementContent = ref('')
-const selectedFile = ref<File | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
+const configStore = useConfigStore()
+const conversationStore = useConversationStore()
+const documentStore = useDocumentStore()
+
 const userInput = ref('')
-const isLoading = ref(false)
-const error = ref('')
-const currentAssistantMessage = ref('')
-const showSuccessToast = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
+const showMobileSidebar = ref(false)
+const isGeneratingDoc = ref(false)
+const showDocToast = ref(false)
+const docToastMessage = ref('')
+
+const examples = [
+  '用户登录注册功能',
+  '数据统计报表',
+  '在线商城系统',
+  '企业内部管理系统',
+]
 
 const hasApiKey = computed(() => !!configStore.apiKey)
 
@@ -309,332 +318,156 @@ marked.setOptions({
 
 const renderMarkdown = (content: string): string => {
   if (!content) return ''
-  
   let html = marked.parse(content) as string
-  
   html = html.replace(/<pre><code(?: class="language-(\w+)")?>/g, (match, lang) => {
     const language = lang || 'text'
-    return `<div class="code-block"><div class="code-header"><span class="code-lang">${language}</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">复制代码</button></div><pre><code class="language-${language}">`
+    return `<div class="code-block"><div class="code-header"><span class="code-lang">${language}</span><button class="copy-btn">复制</button></div><pre><code class="language-${language}">`
   })
   html = html.replace(/<\/code><\/pre>/g, '</code></pre></div>')
-  
   return html
 }
 
 onMounted(async () => {
-  await documentStore.init()
-  conversationStore.init()
+  await Promise.all([
+    conversationStore.loadSessions(),
+    documentStore.init(),
+  ])
+
+  if (conversationStore.sortedSessions.length > 0 && !conversationStore.currentSessionId) {
+    await conversationStore.loadSession(conversationStore.sortedSessions[0].id)
+  }
 })
 
-onActivated(() => {
+const scrollToBottom = async () => {
+  await nextTick()
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+  }
+}
+
+const startNewConversation = async () => {
+  await conversationStore.createSession()
+}
+
+const loadConversation = async (sessionId: string) => {
+  await conversationStore.loadSession(sessionId)
   scrollToBottom()
-})
-
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (chatContainer.value) {
-      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-    }
-  })
 }
 
-const triggerFileSelect = () => {
-  fileInput.value?.click()
-}
-
-const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files.length > 0) {
-    const file = target.files[0]
-    selectedFile.value = file
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        requirementContent.value = e.target.result as string
-      }
-    }
-    reader.readAsText(file)
+const deleteConversation = async (sessionId: string) => {
+  if (confirm('确定要删除这个对话吗？')) {
+    await conversationStore.deleteSession(sessionId)
   }
 }
 
-const removeFile = () => {
-  selectedFile.value = null
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
-  requirementContent.value = ''
-}
-
-const startConversation = async () => {
-  if (!requirementContent.value.trim()) return
-
-  isLoading.value = true
-  error.value = ''
-
-  try {
-    const formData = new FormData()
-    formData.append('title', '需求对话')
-    formData.append('content', requirementContent.value)
-    formData.append('type', 'text')
-
-    const response = await $fetch('/requirements', {
-      method: 'POST',
-      baseURL: config.public.apiBaseUrl,
-      headers: {
-        'X-API-Provider': configStore.provider,
-        'X-API-Key': configStore.apiKey,
-        'X-API-BaseURL': configStore.baseURL || '',
-        'X-API-Model': configStore.model,
-      },
-      body: formData,
-    })
-
-    conversationStore.startConversation(
-      (response as any).id,
-      '需求对话',
-      requirementContent.value
-    )
-
-    await sendInitialMessage()
-  } catch (e: any) {
-    error.value = e.data?.message || e.message || '启动对话失败'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const sendInitialMessage = async () => {
-  if (!conversationStore.currentConversation) return
-
-  conversationStore.setLoading(true)
-  currentAssistantMessage.value = ''
-
-  conversationStore.addMessage('user', conversationStore.currentConversation.requirementContent)
-  
-  conversationStore.addMessage('assistant', '')
-  const msgIndex = conversationStore.currentConversation.messages.length - 1
-  
-  scrollToBottom()
-
-  try {
-    const response = await fetch(`${config.public.apiBaseUrl}/sessions/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Provider': configStore.provider,
-        'X-API-Key': configStore.apiKey,
-        'X-API-BaseURL': configStore.baseURL || '',
-        'X-API-Model': configStore.model,
-      },
-      body: JSON.stringify({
-        requirementId: conversationStore.currentConversation.requirementId,
-        message: conversationStore.currentConversation.requirementContent,
-      }),
-    })
-
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-
-    if (reader) {
-      conversationStore.setActiveStreamReader(reader)
-      let fullContent = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6))
-            if (data.content && !data.done) {
-              fullContent += data.content
-              conversationStore.currentConversation!.messages[msgIndex].content = fullContent
-              conversationStore.saveToStorage()
-              scrollToBottom()
-            }
-          }
-        }
-      }
-      conversationStore.setActiveStreamReader(null)
-    }
-  } catch (e: any) {
-    error.value = e.data?.message || e.message || '发送消息失败'
-    conversationStore.currentConversation!.messages.pop()
-    conversationStore.saveToStorage()
-  } finally {
-    conversationStore.setLoading(false)
-    currentAssistantMessage.value = ''
-  }
-}
-
-const copyToClipboard = async (content: string) => {
-  try {
-    await navigator.clipboard.writeText(content)
-  } catch (e: any) {
-    console.error('复制失败:', e)
-  }
+const startWithExample = async (example: string) => {
+  if (!hasApiKey.value) return
+  userInput.value = example
+  await sendMessage()
 }
 
 const sendMessage = async () => {
-  if (!userInput.value.trim() || !conversationStore.currentConversation || conversationStore.isLoading) return
+  if (!userInput.value.trim() || conversationStore.isLoading) return
 
-  const message = userInput.value
+  const message = userInput.value.trim()
   userInput.value = ''
-  conversationStore.setLoading(true)
-  error.value = ''
-  currentAssistantMessage.value = ''
 
-  conversationStore.addMessage('user', message)
-  conversationStore.addMessage('assistant', '')
-  const msgIndex = conversationStore.currentConversation.messages.length - 1
-  
+  const firstMessage = conversationStore.currentMessages.length === 0
+
+  await conversationStore.sendMessage(message, {
+    provider: configStore.provider,
+    apiKey: configStore.apiKey,
+    baseURL: configStore.baseURL,
+    model: configStore.model,
+  })
+
+  if (firstMessage) {
+    const title = message.slice(0, 30) + (message.length > 30 ? '...' : '')
+    await conversationStore.updateSessionTitle(conversationStore.currentSessionId!, title)
+  }
+
   scrollToBottom()
-
-  try {
-    const response = await fetch(`${config.public.apiBaseUrl}/sessions/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Provider': configStore.provider,
-        'X-API-Key': configStore.apiKey,
-        'X-API-BaseURL': configStore.baseURL || '',
-        'X-API-Model': configStore.model,
-      },
-      body: JSON.stringify({
-        requirementId: conversationStore.currentConversation.requirementId,
-        message: message,
-      }),
-    })
-
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-
-    if (reader) {
-      conversationStore.setActiveStreamReader(reader)
-      let fullContent = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6))
-            if (data.content && !data.done) {
-              fullContent += data.content
-              conversationStore.currentConversation!.messages[msgIndex].content = fullContent
-              conversationStore.saveToStorage()
-              scrollToBottom()
-            }
-          }
-        }
-      }
-      conversationStore.setActiveStreamReader(null)
-    }
-  } catch (e: any) {
-    error.value = e.data?.message || e.message || '发送消息失败'
-    conversationStore.currentConversation!.messages.pop()
-    conversationStore.saveToStorage()
-  } finally {
-    conversationStore.setLoading(false)
-    currentAssistantMessage.value = ''
-  }
 }
 
-const generateSolution = async () => {
-  if (!conversationStore.currentConversation || conversationStore.isGeneratingSolution) return
+const generateDocument = async () => {
+  if (!conversationStore.currentSessionId || isGeneratingDoc.value) return
 
-  conversationStore.setGeneratingSolution(true)
-  error.value = ''
-
-  let fullContent = ''
+  isGeneratingDoc.value = true
 
   try {
-    const response = await fetch(`${config.public.apiBaseUrl}/sessions/generate-solution`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Provider': configStore.provider,
-        'X-API-Key': configStore.apiKey,
-        'X-API-BaseURL': configStore.baseURL || '',
-        'X-API-Model': configStore.model,
-      },
-      body: JSON.stringify({
-        requirementId: conversationStore.currentConversation.requirementId,
-      }),
-    })
+    const doc = await documentStore.createDocument(
+      conversationStore.currentSessionId,
+      conversationStore.currentSession?.title || '项目实施计划'
+    )
 
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
+    docToastMessage.value = '方案生成中，请前往个人中心查看'
+    showDocToast.value = true
+    setTimeout(() => {
+      showDocToast.value = false
+    }, 5000)
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6))
-            if (data.content && !data.done) {
-              fullContent += data.content
-            }
-          }
-        }
-      }
-    }
-
-    if (fullContent) {
-      const title = `技术方案_${new Date().toLocaleString('zh-CN', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).replace(/\//g, '-')}`
-      
-      documentStore.addDocument(title, fullContent)
-      
-      showSuccessToast.value = true
-      setTimeout(() => {
-        showSuccessToast.value = false
-      }, 5000)
-    }
   } catch (e: any) {
-    error.value = e.data?.message || e.message || '生成方案失败'
+    console.error('Failed to generate document:', e)
   } finally {
-    conversationStore.setGeneratingSolution(false)
+    isGeneratingDoc.value = false
   }
-}
-
-const resetConversation = () => {
-  conversationStore.clearConversation()
-  userInput.value = ''
-  requirementContent.value = ''
-  removeFile()
 }
 </script>
 
 <style scoped>
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+.chat-scroll {
+  scroll-behavior: smooth;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.markdown-content :deep(.code-block) {
+  @apply my-3 rounded-lg overflow-hidden bg-gray-900;
+}
+
+.markdown-content :deep(.code-header) {
+  @apply flex items-center justify-between px-3 py-1.5 bg-gray-800 text-xs;
+}
+
+.markdown-content :deep(.code-lang) {
+  @apply text-gray-400 font-mono;
+}
+
+.markdown-content :deep(.copy-btn) {
+  @apply px-2 py-0.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors;
+}
+
+.markdown-content :deep(pre) {
+  @apply p-3 overflow-x-auto text-sm;
+}
+
+.markdown-content :deep(code) {
+  @apply font-mono text-gray-100;
+}
+
+.markdown-content :deep(pre code) {
+  @apply bg-transparent;
+}
+
+.markdown-content :deep(p:not(:last-child)) {
+  @apply mb-3;
+}
+
+.markdown-content :deep(ul), .markdown-content :deep(ol) {
+  @apply pl-5 mb-3;
+}
+
+.markdown-content :deep(li) {
+  @apply mb-1;
+}
+
+.markdown-content :deep(h2) {
+  @apply text-lg font-semibold mt-4 mb-2 text-gray-900 dark:text-white;
+}
+
+.markdown-content :deep(h3) {
+  @apply text-base font-semibold mt-3 mb-2 text-gray-900 dark:text-white;
+}
+
+.markdown-content :deep(p code) {
+  @apply px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm text-indigo-600 dark:text-indigo-400;
 }
 </style>

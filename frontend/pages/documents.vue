@@ -18,7 +18,7 @@
         </div>
       </div>
 
-      <div v-if="documentStore.validDocuments.length === 0" class="text-center py-20">
+      <div v-if="documentStore.documents.length === 0" class="text-center py-20">
         <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center">
           <svg class="w-10 h-10 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -46,18 +46,28 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <span>{{ documentStore.validDocuments.length }} 个文档</span>
+          <span>{{ documentStore.documents.length }} 个文档</span>
         </div>
 
         <div
-          v-for="doc in documentStore.validDocuments"
+          v-for="doc in documentStore.documents"
           :key="doc.id"
           class="group flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
           @click="viewDocument(doc)"
         >
-          <div class="flex-shrink-0 w-10 h-10 rounded-lg tech-gradient flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" :class="getStatusIconClass(doc.status)">
+            <svg v-if="doc.status === 'completed'" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <svg v-else-if="doc.status === 'generating'" class="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else-if="doc.status === 'failed'" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <svg v-else class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
 
@@ -67,29 +77,37 @@
             </h3>
             <div class="flex items-center gap-3 mt-0.5">
               <span class="text-xs text-gray-500 dark:text-gray-400">
-                {{ formatDate(doc.createdAt) }}
+                {{ formatDate(doc.created_at) }}
               </span>
-              <span class="text-xs text-gray-400 dark:text-gray-500">
+              <span v-if="doc.status === 'completed'" class="text-xs text-gray-400 dark:text-gray-500">
                 {{ getContentSize(doc.content) }}
               </span>
             </div>
           </div>
 
           <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1 text-xs text-orange-500 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{{ documentStore.getTimeRemaining(doc.expiresAt) }}</span>
-            </div>
+            <span class="text-xs px-2 py-1 rounded-full" :class="getStatusBadgeClass(doc.status)">
+              {{ getStatusText(doc.status) }}
+            </span>
 
             <button
+              v-if="doc.status === 'completed'"
               @click.stop="downloadDocument(doc)"
               class="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
               title="下载文档"
             >
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+
+            <button
+              @click.stop="refreshDocument(doc.id)"
+              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
+              title="刷新状态"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
 
@@ -111,7 +129,7 @@
       <div class="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" @click.stop>
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg tech-gradient flex items-center justify-center">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" :class="getStatusIconClass(selectedDocument.status)">
               <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -121,12 +139,16 @@
                 {{ selectedDocument.title }}
               </h2>
               <p class="text-xs text-gray-500 dark:text-gray-400">
-                创建于 {{ formatDate(selectedDocument.createdAt) }}
+                创建于 {{ formatDate(selectedDocument.created_at) }}
               </p>
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-1 rounded-full" :class="getStatusBadgeClass(selectedDocument.status)">
+              {{ getStatusText(selectedDocument.status) }}
+            </span>
             <button
+              v-if="selectedDocument.status === 'completed'"
               @click="downloadDocument(selectedDocument)"
               class="px-3 py-1.5 text-xs tech-gradient text-white rounded-lg hover:opacity-90 transition-all duration-200 flex items-center gap-1.5"
             >
@@ -147,7 +169,35 @@
         </div>
 
         <div class="flex-1 overflow-y-auto chat-scroll p-5">
-          <div class="markdown-content text-sm" v-html="renderMarkdown(selectedDocument.content)"></div>
+          <div v-if="selectedDocument.status === 'generating'" class="flex flex-col items-center justify-center py-20">
+            <div class="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
+              <svg class="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">文档生成中</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">请稍候，AI 正在生成您的技术方案...</p>
+            <button @click="refreshDocument(selectedDocument.id)" class="mt-4 px-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors">
+              刷新状态
+            </button>
+          </div>
+          <div v-else-if="selectedDocument.status === 'failed'" class="flex flex-col items-center justify-center py-20">
+            <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+              <svg class="w-8 h-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">生成失败</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">文档生成过程中出现错误，请重试</p>
+            <button @click="retryDocument(selectedDocument)" class="mt-4 px-4 py-2 text-sm tech-gradient text-white rounded-lg hover:opacity-90 transition-colors">
+              重新生成
+            </button>
+          </div>
+          <div v-else-if="selectedDocument.status === 'completed'" class="markdown-content text-sm" v-html="renderMarkdown(selectedDocument.content)"></div>
+          <div v-else class="text-center py-20 text-gray-500 dark:text-gray-400">
+            等待生成...
+          </div>
         </div>
       </div>
     </div>
@@ -157,6 +207,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useDocumentStore } from '~/stores/documents'
+import { useConversationStore } from '~/stores/conversation'
 import { marked } from 'marked'
 
 definePageMeta({
@@ -164,29 +215,31 @@ definePageMeta({
 })
 
 const documentStore = useDocumentStore()
+const conversationStore = useConversationStore()
 const selectedDocument = ref<any>(null)
 
 onMounted(async () => {
-  await documentStore.init()
+  await documentStore.loadDocuments()
+  setInterval(() => {
+    checkGeneratingDocuments()
+  }, 5000)
 })
+
+const checkGeneratingDocuments = async () => {
+  const generating = documentStore.documents.filter(d => d.status === 'generating')
+  for (const doc of generating) {
+    await documentStore.refreshDocument(doc.id)
+  }
+}
 
 marked.setOptions({
   breaks: true,
   gfm: true,
 })
 
-const renderMarkdown = (content: string): string => {
+const renderMarkdown = (content: string | null): string => {
   if (!content) return ''
-
-  let html = marked.parse(content) as string
-
-  html = html.replace(/<pre><code(?: class="language-(\w+)")?>/g, (match, lang) => {
-    const language = lang || 'text'
-    return `<div class="code-block"><div class="code-header"><span class="code-lang">${language}</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">复制代码</button></div><pre><code class="language-${language}">`
-  })
-  html = html.replace(/<\/code><\/pre>/g, '</code></pre></div>')
-
-  return html
+  return marked.parse(content) as string
 }
 
 const formatDate = (timestamp: number): string => {
@@ -199,11 +252,39 @@ const formatDate = (timestamp: number): string => {
   })
 }
 
-const getContentSize = (content: string): string => {
+const getContentSize = (content: string | null): string => {
+  if (!content) return ''
   const bytes = new Blob([content]).size
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const getStatusIconClass = (status: string): string => {
+  switch (status) {
+    case 'completed': return 'bg-green-500'
+    case 'generating': return 'bg-indigo-500'
+    case 'failed': return 'bg-red-500'
+    default: return 'bg-gray-400'
+  }
+}
+
+const getStatusBadgeClass = (status: string): string => {
+  switch (status) {
+    case 'completed': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+    case 'generating': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+    case 'failed': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+  }
+}
+
+const getStatusText = (status: string): string => {
+  switch (status) {
+    case 'completed': return '已完成'
+    case 'generating': return '生成中'
+    case 'failed': return '失败'
+    default: return '等待中'
+  }
 }
 
 const viewDocument = (doc: any) => {
@@ -214,13 +295,30 @@ const closeDocument = () => {
   selectedDocument.value = null
 }
 
-const deleteDocument = (id: string) => {
+const refreshDocument = async (docId: number) => {
+  await documentStore.refreshDocument(docId)
+  if (selectedDocument.value?.id === docId) {
+    selectedDocument.value = documentStore.documents.find(d => d.id === docId)
+  }
+}
+
+const retryDocument = async (doc: any) => {
+  closeDocument()
+  await documentStore.createDocument(doc.session_id, doc.title)
+  await documentStore.loadDocuments()
+}
+
+const deleteDocument = async (docId: number) => {
   if (confirm('确定要删除这个文档吗？')) {
-    documentStore.deleteDocument(id)
+    await documentStore.deleteDocument(docId)
+    if (selectedDocument.value?.id === docId) {
+      closeDocument()
+    }
   }
 }
 
 const downloadDocument = (doc: any) => {
+  if (!doc.content) return
   const blob = new Blob([doc.content], { type: 'text/markdown' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -232,3 +330,9 @@ const downloadDocument = (doc: any) => {
   URL.revokeObjectURL(url)
 }
 </script>
+
+<style scoped>
+.chat-scroll {
+  scroll-behavior: smooth;
+}
+</style>

@@ -1,15 +1,14 @@
 import { defineStore } from 'pinia'
 
 interface Document {
-  id: string
+  id: number
+  session_id: string
   title: string
-  content: string
-  createdAt: number
-  expiresAt: number
+  content: string | null
+  status: 'pending' | 'generating' | 'completed' | 'failed'
+  created_at: number
+  updated_at: number
 }
-
-const STORAGE_KEY = 'planforge-documents'
-const EXPIRY_TIME = 24 * 60 * 60 * 1000
 
 export const useDocumentStore = defineStore('document', {
   state: () => ({
@@ -19,89 +18,93 @@ export const useDocumentStore = defineStore('document', {
 
   getters: {
     validDocuments: (state) => {
-      const now = Date.now()
-      return state.documents.filter(doc => doc.expiresAt > now)
+      return state.documents.filter(doc => doc.status === 'completed')
     },
 
-    expiredDocuments: (state) => {
-      const now = Date.now()
-      return state.documents.filter(doc => doc.expiresAt <= now)
+    generatingDocuments: (state) => {
+      return state.documents.filter(doc => doc.status === 'generating')
     },
   },
 
   actions: {
     async init() {
       if (this._initialized) return
-
-      this.loadFromStorage()
-      this.cleanExpiredDocuments()
+      await this.loadDocuments()
       this._initialized = true
     },
 
-    loadFromStorage() {
-      if (typeof window === 'undefined') return
-
+    async loadDocuments() {
       try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          this.documents = JSON.parse(stored)
+        const response = await fetch('/api/documents')
+        const data = await response.json()
+        this.documents = data.documents || []
+      } catch (e) {
+        console.error('Failed to load documents:', e)
+      }
+    },
+
+    async createDocument(sessionId: string, title: string = '项目实施计划') {
+      try {
+        const response = await fetch('/api/documents/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, title }),
+        })
+        const data = await response.json()
+        
+        this.documents.unshift(data.document)
+        
+        return data.document
+      } catch (e: any) {
+        throw e
+      }
+    },
+
+    async refreshDocument(documentId: number) {
+      try {
+        const response = await fetch(`/api/documents/${documentId}`)
+        const data = await response.json()
+        
+        const index = this.documents.findIndex(d => d.id === documentId)
+        if (index >= 0) {
+          this.documents[index] = data.document
         }
+        
+        return data.document
       } catch (e) {
-        console.error('Failed to load documents from storage:', e)
+        console.error('Failed to refresh document:', e)
+        return null
       }
     },
 
-    saveToStorage() {
-      if (typeof window === 'undefined') return
-
+    async checkDocumentStatus(documentId: number): Promise<Document | null> {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.documents))
+        const response = await fetch(`/api/documents/${documentId}`)
+        const data = await response.json()
+        
+        const index = this.documents.findIndex(d => d.id === documentId)
+        if (index >= 0) {
+          this.documents[index] = data.document
+        }
+        
+        return data.document
       } catch (e) {
-        console.error('Failed to save documents to storage:', e)
+        console.error('Failed to check document status:', e)
+        return null
       }
     },
 
-    cleanExpiredDocuments() {
-      const now = Date.now()
-      const before = this.documents.length
-      this.documents = this.documents.filter(doc => doc.expiresAt > now)
-
-      if (this.documents.length !== before) {
-        this.saveToStorage()
+    async deleteDocument(documentId: number) {
+      try {
+        await fetch(`/api/documents/${documentId}`, { method: 'DELETE' })
+        this.documents = this.documents.filter(d => d.id !== documentId)
+      } catch (e) {
+        console.error('Failed to delete document:', e)
       }
     },
 
-    addDocument(title: string, content: string): string {
-      const now = Date.now()
-      const id = `doc_${now}_${Math.random().toString(36).substr(2, 9)}`
-
-      const document: Document = {
-        id,
-        title,
-        content,
-        createdAt: now,
-        expiresAt: now + EXPIRY_TIME,
-      }
-
-      this.documents.unshift(document)
-      this.saveToStorage()
-
-      return id
-    },
-
-    getDocument(id: string): Document | undefined {
-      return this.validDocuments.find(doc => doc.id === id)
-    },
-
-    deleteDocument(id: string) {
-      this.documents = this.documents.filter(doc => doc.id !== id)
-      this.saveToStorage()
-    },
-
-    getTimeRemaining(expiresAt: number): string {
-      const now = Date.now()
-      const remaining = expiresAt - now
-
+    getTimeRemaining(updatedAt: number): string {
+      const remaining = updatedAt + 24 * 60 * 60 * 1000 - Date.now()
       if (remaining <= 0) return '已过期'
 
       const hours = Math.floor(remaining / (1000 * 60 * 60))

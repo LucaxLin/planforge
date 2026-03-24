@@ -1,124 +1,228 @@
 import { defineStore } from 'pinia'
 
 interface Message {
-  role: 'user' | 'assistant'
+  id?: number
+  role: 'user' | 'assistant' | 'system'
   content: string
+  created_at?: number
 }
 
-interface Conversation {
-  requirementId: string
+interface Session {
+  id: string
   title: string
-  messages: Message[]
-  requirementContent: string
-  isLoading: boolean
-  isGeneratingSolution: boolean
+  requirement_content?: string
+  created_at: number
+  updated_at: number
 }
-
-const STORAGE_KEY = 'planforge-conversation'
 
 export const useConversationStore = defineStore('conversation', {
   state: () => ({
-    currentConversation: null as Conversation | null,
-    _initialized: false,
-    _activeStreamReader: null as ReadableStreamDefaultReader<Uint8Array> | null,
+    sessions: [] as Session[],
+    currentSessionId: null as string | null,
+    currentMessages: [] as Message[],
+    isLoading: false,
+    isGenerating: false,
+    error: null as string | null,
   }),
 
   getters: {
-    hasActiveConversation: (state) => state.currentConversation !== null,
-    messageCount: (state) => state.currentConversation?.messages.length || 0,
-    isLoading: (state) => state.currentConversation?.isLoading || false,
-    isGeneratingSolution: (state) => state.currentConversation?.isGeneratingSolution || false,
+    currentSession: (state) => {
+      return state.sessions.find(s => s.id === state.currentSessionId)
+    },
+
+    sortedSessions: (state) => {
+      return [...state.sessions].sort((a, b) => b.updated_at - a.updated_at)
+    },
   },
 
   actions: {
-    init() {
-      if (this._initialized) return
-      
-      this.loadFromStorage()
-      this._initialized = true
-    },
-
-    loadFromStorage() {
-      if (typeof window === 'undefined') return
-      
+    async loadSessions() {
       try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          this.currentConversation = JSON.parse(stored)
-        }
-      } catch (e) {
-        console.error('Failed to load conversation from storage:', e)
+        const response = await fetch('/api/sessions')
+        const data = await response.json()
+        this.sessions = data.sessions || []
+      } catch (e: any) {
+        console.error('Failed to load sessions:', e)
       }
     },
 
-    saveToStorage() {
-      if (typeof window === 'undefined') return
-      
+    async createSession(title?: string, requirementContent?: string) {
       try {
-        if (this.currentConversation) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentConversation))
+        const response = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, requirementContent }),
+        })
+        const data = await response.json()
+        this.sessions.unshift(data.session)
+        this.currentSessionId = data.session.id
+        this.currentMessages = []
+        return data.session
+      } catch (e: any) {
+        this.error = e.message
+        throw e
+      }
+    },
+
+    async loadSession(sessionId: string) {
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}`)
+        const data = await response.json()
+        
+        this.currentSessionId = sessionId
+        
+        const existingIndex = this.sessions.findIndex(s => s.id === sessionId)
+        if (existingIndex >= 0) {
+          this.sessions[existingIndex] = data.session
         } else {
-          localStorage.removeItem(STORAGE_KEY)
+          this.sessions.unshift(data.session)
+        }
+        
+        this.currentMessages = data.messages || []
+        
+        return data
+      } catch (e: any) {
+        this.error = e.message
+        throw e
+      }
+    },
+
+    async updateSessionTitle(sessionId: string, title: string) {
+      try {
+        await fetch(`/api/sessions/${sessionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        })
+        
+        const session = this.sessions.find(s => s.id === sessionId)
+        if (session) {
+          session.title = title
+        }
+      } catch (e: any) {
+        this.error = e.message
+      }
+    },
+
+    async deleteSession(sessionId: string) {
+      try {
+        await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
+        this.sessions = this.sessions.filter(s => s.id !== sessionId)
+        
+        if (this.currentSessionId === sessionId) {
+          this.currentSessionId = null
+          this.currentMessages = []
+        }
+      } catch (e: any) {
+        this.error = e.message
+      }
+    },
+
+    async sendMessage(message: string, apiConfig: { provider: string, apiKey: string, baseURL?: string, model: string }) {
+      if (!this.currentSessionId) {
+        await this.createSession()
+      }
+
+      this.isLoading = true
+      this.error = null
+
+      this.currentMessages.push({ role: 'user', content: message })
+
+      try {
+        const response = await fetch('/api/sessions/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-provider': apiConfig.provider,
+            'x-api-key': apiConfig.apiKey,
+            'x-api-baseurl': apiConfig.baseURL || '',
+            'x-api-model': apiConfig.model,
+          },
+          body: JSON.stringify({
+            requirementId: this.currentSessionId,
+            message,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to send message')
+        }
+
+        const reader = response.body?.getReader()
+        if (!reader) throw new Error('No response body')
+
+        let fullResponse = ''
+        const assistantMessage: Message = { role: 'assistant', content: '' }
+        this.currentMessages.push(assistantMessage)
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const text = new TextDecoder().decode(value)
+          const lines = text.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                if (data.content) {
+                  fullResponse += data.content
+                  assistantMessage.content = fullResponse
+                }
+                if (data.done && data.history) {
+                  this.currentMessages = data.history.map((h: any) => ({
+                    id: Date.now(),
+                    role: h.role,
+                    content: h.content,
+                    created_at: Date.now(),
+                  }))
+                }
+              } catch (e) {
+                // Ignore parse errors for partial data
+              }
+            }
+          }
+        }
+
+        await this.syncMessages()
+        return fullResponse
+
+      } catch (e: any) {
+        this.error = e.message
+        this.currentMessages = this.currentMessages.filter(m => m.role !== 'assistant' || m.content !== '')
+        throw e
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async syncMessages() {
+      if (!this.currentSessionId) return
+
+      try {
+        await fetch(`/api/sessions/${this.currentSessionId}/messages`, {
+          method: 'DELETE',
+        })
+
+        for (const msg of this.currentMessages) {
+          if (msg.role === 'system') continue
+          await fetch(`/api/sessions/${this.currentSessionId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: msg.role, content: msg.content }),
+          })
         }
       } catch (e) {
-        console.error('Failed to save conversation to storage:', e)
+        console.error('Failed to sync messages:', e)
       }
     },
 
-    startConversation(requirementId: string, title: string, requirementContent: string) {
-      this.currentConversation = {
-        requirementId,
-        title,
-        messages: [],
-        requirementContent,
-        isLoading: false,
-        isGeneratingSolution: false,
+    clearCurrentConversation() {
+      this.currentMessages = []
+      if (this.currentSessionId) {
+        this.syncMessages()
       }
-      this.saveToStorage()
-    },
-
-    addMessage(role: 'user' | 'assistant', content: string) {
-      if (!this.currentConversation) return
-      
-      this.currentConversation.messages.push({ role, content })
-      this.saveToStorage()
-    },
-
-    updateLastMessage(content: string) {
-      if (!this.currentConversation || this.currentConversation.messages.length === 0) return
-      
-      const lastMessage = this.currentConversation.messages[this.currentConversation.messages.length - 1]
-      lastMessage.content = content
-      this.saveToStorage()
-    },
-
-    setLoading(loading: boolean) {
-      if (!this.currentConversation) return
-      this.currentConversation.isLoading = loading
-      this.saveToStorage()
-    },
-
-    setGeneratingSolution(generating: boolean) {
-      if (!this.currentConversation) return
-      this.currentConversation.isGeneratingSolution = generating
-      this.saveToStorage()
-    },
-
-    setActiveStreamReader(reader: ReadableStreamDefaultReader<Uint8Array> | null) {
-      this._activeStreamReader = reader
-    },
-
-    cancelActiveStream() {
-      if (this._activeStreamReader) {
-        this._activeStreamReader.cancel()
-        this._activeStreamReader = null
-      }
-    },
-
-    clearConversation() {
-      this.cancelActiveStream()
-      this.currentConversation = null
-      this.saveToStorage()
     },
   },
 })
