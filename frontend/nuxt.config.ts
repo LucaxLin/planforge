@@ -16,7 +16,7 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Transform your project requirements into detailed implementation plans with AI assistance' },
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
       ],
     },
   },

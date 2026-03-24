@@ -1,15 +1,10 @@
-import { useConfigStore } from '~/stores/config'
 import { useThemeStore } from '~/stores/theme'
+import { useConfigStore } from '~/stores/config'
 
-export default defineNuxtPlugin(() => {
-  const configStore = useConfigStore()
+export default defineNuxtPlugin(async () => {
   const themeStore = useThemeStore()
-  
-  if (import.meta.client) {
-    if (!configStore._initialized) {
-      configStore.loadFromStorage()
-    }
-    
-    themeStore.init()
-  }
+  const configStore = useConfigStore()
+
+  themeStore.init()
+  configStore.loadFromStorage()
 })
