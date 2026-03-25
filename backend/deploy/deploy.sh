@@ -61,7 +61,7 @@ systemctl reload nginx
 
 # Get SSL certificate
 echo -e "${YELLOW}Getting SSL certificate...${NC}"
-certbot --nginx -d planforge.lucaslinn.cc.cd --non-interactive --agree-tos -m 892789989@qq.com
+certbot certonly --manual --preferred-challenges dns -d planforge-api.lucaslinn.cc.cd
 
 # Create systemd service
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
@@ -90,4 +90,4 @@ systemctl restart $SERVICE_NAME
 echo -e "${GREEN}=== Deployment Complete ===${NC}"
 echo -e "Service status: ${YELLOW}"
 systemctl status $SERVICE_NAME --no-pager
-echo -e "${NC}API should be available at: https://planforge.lucaslinn.cc.cd"
+echo -e "${NC}API should be available at: https://planforge-api.lucaslinn.cc.cd"
