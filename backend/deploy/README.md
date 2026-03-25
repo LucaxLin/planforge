@@ -9,18 +9,10 @@
 
 ### 1. Configure Environment Variables
 
-On your server, create `.env` file:
+On your server, use the production config:
 ```bash
 cd /var/www/planforge-api
-cp .env.example .env
-nano .env
-```
-
-Edit `.env`:
-```env
-PORT=3001
-NODE_ENV=production
-CORS_ORIGIN=https://planforge.lucaslinn.cc.cd
+cp .env.prod .env
 ```
 
 ### 2. Run Deployment Script
