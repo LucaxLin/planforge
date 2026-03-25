@@ -7,6 +7,14 @@
 </template>
 
 <script setup lang="ts">
+const config = useRuntimeConfig()
+
+if (process.client) {
+  (window as any).__RUNTIME_CONFIG__ = {
+    apiBaseUrl: config.public.apiBaseUrl
+  }
+}
+
 useHead({
   titleTemplate: (titleChunk) => {
     return titleChunk ? `${titleChunk} - PlanForge` : 'PlanForge'

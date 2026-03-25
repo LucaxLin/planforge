@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
+import api from '../utils/api'
 
 interface Message {
   id?: number
   role: 'user' | 'assistant' | 'system'
   content: string
-  created_at?: number
+  created_at?: number,
+  _streamUpdate?: number,
 }
 
 interface Session {
@@ -38,8 +40,7 @@ export const useConversationStore = defineStore('conversation', {
   actions: {
     async loadSessions() {
       try {
-        const response = await fetch('/api/sessions')
-        const data = await response.json()
+        const data = await api.sessions.list()
         this.sessions = data.sessions || []
       } catch (e: any) {
         console.error('Failed to load sessions:', e)
@@ -48,12 +49,7 @@ export const useConversationStore = defineStore('conversation', {
 
     async createSession(title?: string, requirementContent?: string) {
       try {
-        const response = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, requirementContent }),
-        })
-        const data = await response.json()
+        const data = await api.sessions.create({ title, requirementContent })
         this.sessions.unshift(data.session)
         this.currentSessionId = data.session.id
         this.currentMessages = []
@@ -66,8 +62,7 @@ export const useConversationStore = defineStore('conversation', {
 
     async loadSession(sessionId: string) {
       try {
-        const response = await fetch(`/api/sessions/${sessionId}`)
-        const data = await response.json()
+        const data = await api.sessions.get(sessionId)
         
         this.currentSessionId = sessionId
         
@@ -89,11 +84,7 @@ export const useConversationStore = defineStore('conversation', {
 
     async updateSessionTitle(sessionId: string, title: string) {
       try {
-        await fetch(`/api/sessions/${sessionId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title }),
-        })
+        await api.sessions.update(sessionId, { title })
         
         const session = this.sessions.find(s => s.id === sessionId)
         if (session) {
@@ -106,7 +97,7 @@ export const useConversationStore = defineStore('conversation', {
 
     async deleteSession(sessionId: string) {
       try {
-        await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' })
+        await api.sessions.delete(sessionId)
         this.sessions = this.sessions.filter(s => s.id !== sessionId)
         
         if (this.currentSessionId === sessionId) {
@@ -137,20 +128,7 @@ export const useConversationStore = defineStore('conversation', {
       this.currentMessages.push({ role: 'user', content: message })
 
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-provider': apiConfig.provider,
-            'x-api-key': apiConfig.apiKey,
-            'x-api-baseurl': apiConfig.baseURL || '',
-            'x-api-model': apiConfig.model,
-          },
-          body: JSON.stringify({
-            requirementId: this.currentSessionId,
-            message,
-          }),
-        })
+        const response = await api.chat.send(this.currentSessionId, message, apiConfig)
 
         if (!response.ok) {
           throw new Error('Failed to send message')
@@ -210,15 +188,12 @@ export const useConversationStore = defineStore('conversation', {
           msg => msg.role !== 'system' && msg.content && msg.content.trim()
         )
 
-        await fetch(`/api/sessions/${this.currentSessionId}/messages`, {
-          method: 'DELETE',
-        })
+        await api.sessions.clearMessages(this.currentSessionId)
 
         for (const msg of validMessages) {
-          await fetch(`/api/sessions/${this.currentSessionId}/messages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: msg.role, content: msg.content }),
+          await api.sessions.addMessage(this.currentSessionId, {
+            role: msg.role,
+            content: msg.content,
           })
         }
       } catch (e) {

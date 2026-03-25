@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import api from '../utils/api'
 
 interface Document {
   id: number
@@ -42,8 +43,7 @@ export const useDocumentStore = defineStore('document', {
 
     async loadDocuments() {
       try {
-        const response = await fetch('/api/documents')
-        const data = await response.json()
+        const data = await api.documents.list()
         this.documents = data.documents || []
       } catch (e) {
         console.error('Failed to load documents:', e)
@@ -52,23 +52,18 @@ export const useDocumentStore = defineStore('document', {
 
     async createDocument(sessionId: string, title: string = '项目实施计划', apiConfig?: APIConfig) {
       try {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
+        const config = apiConfig ? {
+          provider: apiConfig.provider,
+          apiKey: apiConfig.apiKey,
+          model: apiConfig.model,
+          ...(apiConfig.baseURL && { baseURL: apiConfig.baseURL }),
+        } : {
+          provider: '',
+          apiKey: '',
+          model: '',
         }
 
-        if (apiConfig) {
-          headers['x-api-provider'] = apiConfig.provider
-          headers['x-api-key'] = apiConfig.apiKey
-          headers['x-api-baseurl'] = apiConfig.baseURL || ''
-          headers['x-api-model'] = apiConfig.model
-        }
-
-        const response = await fetch('/api/documents/generate', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ sessionId, title }),
-        })
-        const data = await response.json()
+        const data = await api.documents.generate(sessionId, title, config)
         
         this.documents.unshift(data.document)
         
@@ -80,8 +75,7 @@ export const useDocumentStore = defineStore('document', {
 
     async refreshDocument(documentId: number) {
       try {
-        const response = await fetch(`/api/documents/${documentId}`)
-        const data = await response.json()
+        const data = await api.documents.get(documentId)
         
         const index = this.documents.findIndex(d => d.id === documentId)
         if (index >= 0) {
@@ -97,8 +91,7 @@ export const useDocumentStore = defineStore('document', {
 
     async checkDocumentStatus(documentId: number): Promise<Document | null> {
       try {
-        const response = await fetch(`/api/documents/${documentId}`)
-        const data = await response.json()
+        const data = await api.documents.get(documentId)
         
         const index = this.documents.findIndex(d => d.id === documentId)
         if (index >= 0) {
@@ -114,7 +107,7 @@ export const useDocumentStore = defineStore('document', {
 
     async deleteDocument(documentId: number) {
       try {
-        await fetch(`/api/documents/${documentId}`, { method: 'DELETE' })
+        await api.documents.delete(documentId)
         this.documents = this.documents.filter(d => d.id !== documentId)
       } catch (e) {
         console.error('Failed to delete document:', e)
