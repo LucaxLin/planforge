@@ -19,8 +19,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Configuration
-APP_DIR="/var/www/planforge-api"
-SERVICE_NAME="planforge-api"
+APP_DIR="/var/www/planforge"
+SERVICE_NAME="planforge"
 PORT=3001
 
 # Step 1: Install dependencies
@@ -61,7 +61,7 @@ systemctl reload nginx
 
 # Get SSL certificate
 echo -e "${YELLOW}Getting SSL certificate...${NC}"
-certbot --nginx -d planforge-api.lucaslinn.cc.cd --non-interactive --agree-tos -m your-email@example.com
+certbot --nginx -d planforge.lucaslinn.cc.cd --non-interactive --agree-tos -m 892789989@qq.com
 
 # Create systemd service
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
@@ -90,4 +90,4 @@ systemctl restart $SERVICE_NAME
 echo -e "${GREEN}=== Deployment Complete ===${NC}"
 echo -e "Service status: ${YELLOW}"
 systemctl status $SERVICE_NAME --no-pager
-echo -e "${NC}API should be available at: https://planforge-api.lucaslinn.cc.cd"
+echo -e "${NC}API should be available at: https://planforge.lucaslinn.cc.cd"

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - Tencent Cloud server with Ubuntu 20.04+
-- Domain name: `planforge-api.lucaslinn.cc.cd` (A record pointing to your server IP)
+- Domain name: `planforge.lucaslinn.cc.cd` (A record pointing to your server IP)
 - SSH access to the server
 
 ## Quick Start
@@ -11,7 +11,7 @@
 
 On your server, use the production config:
 ```bash
-cd /var/www/planforge-api
+cd /var/www/planforge
 cp .env.prod .env
 ```
 
@@ -38,31 +38,31 @@ apt update && apt install -y nodejs npm nginx certbot python3-certbot-nginx
 
 ### Setup Application
 ```bash
-mkdir -p /var/www/planforge-api
-# Copy files from local: rsync -avz ./backend/ user@server:/var/www/planforge-api/
-cd /var/www/planforge-api
+mkdir -p /var/www/planforge
+# Copy files from local: rsync -avz ./backend/ user@server:/var/www/planforge/
+cd /var/www/planforge
 npm install --production
 ```
 
 ### Configure Nginx
 ```bash
-cp deploy/nginx.conf /etc/nginx/sites-available/planforge-api
-ln -sf /etc/nginx/sites-available/planforge-api /etc/nginx/sites-enabled/planforge-api
+cp deploy/nginx.conf /etc/nginx/sites-available/planforge
+ln -sf /etc/nginx/sites-available/planforge /etc/nginx/sites-enabled/planforge
 nginx -t
 systemctl reload nginx
 ```
 
 ### Get SSL Certificate
 ```bash
-certbot --nginx -d planforge-api.lucaslinn.cc.cd
+certbot --nginx -d planforge.lucaslinn.cc.cd
 ```
 
 ### Create Systemd Service
 ```bash
-# Create /etc/systemd/system/planforge-api.service with the content from deploy.sh
+# Create /etc/systemd/system/planforge.service with the content from deploy.sh
 systemctl daemon-reload
-systemctl enable planforge-api
-systemctl start planforge-api
+systemctl enable planforge
+systemctl start planforge
 ```
 
 ## Security Checklist
@@ -77,8 +77,8 @@ systemctl start planforge-api
 
 ### Check service status
 ```bash
-systemctl status planforge-api
-journalctl -u planforge-api -f
+systemctl status planforge
+journalctl -u planforge -f
 ```
 
 ### Check Nginx logs
@@ -89,7 +89,7 @@ tail -f /var/log/nginx/access.log
 
 ### Restart services
 ```bash
-systemctl restart planforge-api
+systemctl restart planforge
 systemctl reload nginx
 ```
 
@@ -97,12 +97,12 @@ systemctl reload nginx
 
 ```bash
 # Pull latest code
-cd /var/www/planforge-api
+cd /var/www/planforge
 git pull
 
 # Install dependencies
 npm install --production
 
 # Restart service
-systemctl restart planforge-api
+systemctl restart planforge
 ```
