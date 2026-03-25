@@ -27,14 +27,28 @@ export default defineNuxtConfig({
     typeCheck: false,
   },
 
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://planforge-api.lucaslinn.cc.cd',
+    },
+  },
+
   vite: {
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:3001',
+          target: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
           changeOrigin: true,
         },
       },
+    },
+  },
+
+  routeRules: {
+    '/api/**': {
+      proxy: process.env.NUXT_PUBLIC_API_BASE_URL 
+        ? `${process.env.NUXT_PUBLIC_API_BASE_URL}/**` 
+        : 'http://localhost:3001/**'
     },
   },
 })
