@@ -1,7 +1,7 @@
 <template>
   <div class="h-full flex">
     <aside class="w-64 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-900 hidden lg:flex">
-      <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div class="h-14 px-4 flex items-center">
         <button
           @click="startNewConversation"
           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 tech-gradient text-white rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
@@ -66,8 +66,8 @@
         </div>
       </div>
 
-      <div class="p-3 border-t border-gray-200 dark:border-gray-700">
-        <div class="flex items-center gap-2">
+      <div class="h-14 px-4 flex items-center">
+        <div class="flex items-center gap-2 w-full">
           <NuxtLink to="/config" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -105,7 +105,7 @@
         </div>
       </header>
 
-      <div class="hidden lg:flex lg:items-center lg:justify-between lg:px-6 lg:h-14 lg:border-b lg:border-gray-200 dark:lg:border-gray-700 lg:bg-white dark:lg:bg-gray-900">
+      <div class="hidden lg:flex lg:items-center lg:justify-between lg:px-4 lg:h-14 lg:bg-white dark:lg:bg-gray-900">
         <h1 class="text-lg font-semibold text-gray-900 dark:text-white truncate pr-4">
           {{ conversationStore.currentSession?.title || '新对话' }}
         </h1>
@@ -203,35 +203,35 @@
         </div>
       </div>
 
-      <div class="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900">
-        <div class="max-w-3xl mx-auto">
+      <div class="h-14 px-4 flex items-center bg-white dark:bg-gray-900">
+        <div class="max-w-3xl mx-auto flex items-center gap-3 w-full">
           <ClientOnly>
             <div v-if="!hasApiKey" class="text-center py-3">
               <span class="text-sm text-gray-500 dark:text-gray-400">请先</span>
               <NuxtLink to="/config" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mx-1">配置 AI</NuxtLink>
               <span class="text-sm text-gray-500 dark:text-gray-400">开始对话</span>
             </div>
-            <div v-else class="flex gap-3">
+            <div v-else class="flex gap-3 w-full">
               <input
                 v-model="userInput"
                 type="text"
                 @keydown.enter="sendMessage"
                 :disabled="conversationStore.isLoading"
                 placeholder="输入您的需求..."
-                class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                class="flex-1 h-9 px-4 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
               <button
                 @click="sendMessage"
                 :disabled="!userInput.trim() || conversationStore.isLoading"
-                class="px-5 py-3 tech-gradient text-white rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                class="h-9 px-4 tech-gradient text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex-shrink-0"
               >
                 发送
               </button>
             </div>
             <template #fallback>
-              <div class="flex gap-3">
-                <div class="flex-1 h-12 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"></div>
-                <div class="w-20 h-12 tech-gradient rounded-xl animate-pulse"></div>
+              <div class="flex gap-3 w-full">
+                <div class="flex-1 h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse"></div>
+                <div class="w-16 h-9 tech-gradient rounded-lg animate-pulse flex-shrink-0"></div>
               </div>
             </template>
           </ClientOnly>
