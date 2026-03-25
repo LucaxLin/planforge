@@ -4,7 +4,7 @@
 
 ### 需要的材料
 - 腾讯云服务器 (Ubuntu 20.04+)
-- 域名：`planforge-api.lucaslinn.cc.cd` (已解析到服务器IP)
+- 域名：`planforge.lucaslinn.cc.cd` (已解析到服务器IP)
 
 ---
 
@@ -38,9 +38,8 @@ nginx -v
 ## Step 2: 创建应用目录
 
 ```bash
-mkdir -p /var/www/planforge-api
-mkdir -p /var/www/planforge-api/data
-mkdir -p /var/www/planforge-api/deploy
+mkdir -p /var/www/planforge
+mkdir -p /var/www/planforge/data
 ```
 
 ---
@@ -59,7 +58,7 @@ rsync -avz \
   --exclude='.git' \
   --exclude='data' \
   --exclude='dist' \
-  ./backend/ root@你的服务器IP:/var/www/planforge-api/
+  ./backend/ root@你的服务器IP:/var/www/planforge/
 ```
 
 ---
@@ -69,7 +68,7 @@ rsync -avz \
 **在服务器上执行：**
 
 ```bash
-cd /var/www/planforge-api
+cd /var/www/planforge
 
 # 复制生产环境配置
 cp .env.prod .env
@@ -92,7 +91,7 @@ CORS_ORIGIN=https://planforge.lucaslinn.cc.cd
 ## Step 5: 安装 Node.js 依赖
 
 ```bash
-cd /var/www/planforge-api
+cd /var/www/planforge
 npm install
 ```
 
@@ -104,23 +103,23 @@ npm install
 
 ### 6.1 创建 Nginx 配置文件
 ```bash
-nano /etc/nginx/sites-available/planforge-api
+nano /etc/nginx/sites-available/planforge
 ```
 
 粘贴以下内容：
 ```nginx
 server {
     listen 80;
-    server_name planforge-api.lucaslinn.cc.cd;
+    server_name planforge.lucaslinn.cc.cd;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name planforge-api.lucaslinn.cc.cd;
+    server_name planforge.lucaslinn.cc.cd;
 
-    ssl_certificate /etc/letsencrypt/live/planforge-api.lucaslinn.cc.cd/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/planforge-api.lucaslinn.cc.cd/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/planforge.lucaslinn.cc.cd/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/planforge.lucaslinn.cc.cd/privkey.pem;
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
@@ -161,7 +160,7 @@ server {
 
 ### 6.2 启用站点
 ```bash
-ln -sf /etc/nginx/sites-available/planforge-api /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/planforge /etc/nginx/sites-enabled/
 nginx -t
 ```
 
@@ -170,7 +169,7 @@ nginx -t
 ## Step 7: 获取 SSL 证书
 
 ```bash
-certbot --nginx -d planforge-api.lucaslinn.cc.cd
+certbot --nginx -d planforge.lucaslinn.cc.cd
 ```
 
 按提示操作：
@@ -184,23 +183,23 @@ certbot --nginx -d planforge-api.lucaslinn.cc.cd
 ## Step 8: 创建 Systemd 服务
 
 ```bash
-nano /etc/systemd/system/planforge-api.service
+nano /etc/systemd/system/planforge.service
 ```
 
 粘贴以下内容：
 ```ini
 [Unit]
-Description=PlanForge API
+Description=PlanForge Backend API
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/var/www/planforge-api
-ExecStart=/usr/bin/node /var/www/planforge-api/src/app.ts
+WorkingDirectory=/var/www/planforge
+ExecStart=/usr/bin/node /var/www/planforge/src/app.ts
 Restart=on-failure
 Environment=NODE_ENV=production
-EnvironmentFile=/var/www/planforge-api/.env
+EnvironmentFile=/var/www/planforge/.env
 
 [Install]
 WantedBy=multi-user.target
@@ -217,13 +216,13 @@ WantedBy=multi-user.target
 systemctl daemon-reload
 
 # 启用开机自启
-systemctl enable planforge-api
+systemctl enable planforge
 
 # 启动服务
-systemctl start planforge-api
+systemctl start planforge
 
 # 检查状态
-systemctl status planforge-api
+systemctl status planforge
 ```
 
 看到 `active (running)` 表示成功！
@@ -234,8 +233,8 @@ systemctl status planforge-api
 
 ### 10.1 设置数据文件权限
 ```bash
-chmod 600 /var/www/planforge-api/data/*.json
-chown -R www-data:www-data /var/www/planforge-api
+chmod 600 /var/www/planforge/data/*.json
+chown -R www-data:www-data /var/www/planforge
 ```
 
 ### 10.2 配置防火墙
@@ -252,14 +251,14 @@ ufw enable
 
 ### 11.1 测试 API
 ```bash
-curl https://planforge-api.lucaslinn.cc.cd/api/sessions
+curl https://planforge.lucaslinn.cc.cd/api/sessions
 ```
 
 应该返回：`{"sessions":[]}`
 
 ### 11.2 测试健康检查
 ```bash
-curl https://planforge-api.lucaslinn.cc.cd/health
+curl https://planforge.lucaslinn.cc.cd/health
 ```
 
 ---
@@ -269,16 +268,16 @@ curl https://planforge-api.lucaslinn.cc.cd/health
 当代码有更新时：
 
 ```bash
-cd /var/www/planforge-api
+cd /var/www/planforge
 
 # 拉取新代码（如果用 git）
 # git pull
 
 # 或者重新上传
-# rsync -avz --exclude='node_modules' --exclude='.git' ./backend/ root@你的IP:/var/www/planforge-api/
+# rsync -avz --exclude='node_modules' --exclude='.git' ./backend/ root@你的IP:/var/www/planforge/
 
 # 重启服务
-systemctl restart planforge-api
+systemctl restart planforge
 ```
 
 ---
@@ -287,7 +286,7 @@ systemctl restart planforge-api
 
 ### 查看服务日志
 ```bash
-journalctl -u planforge-api -f
+journalctl -u planforge -f
 ```
 
 ### 查看 Nginx 错误日志
@@ -297,7 +296,7 @@ tail -f /var/log/nginx/error.log
 
 ### 重启服务
 ```bash
-systemctl restart planforge-api
+systemctl restart planforge
 systemctl reload nginx
 ```
 
@@ -306,7 +305,7 @@ systemctl reload nginx
 **1. 服务启动失败**
 ```bash
 # 查看详细错误
-node /var/www/planforge-api/src/app.ts
+node /var/www/planforge/src/app.ts
 ```
 
 **2. SSL 证书过期**
@@ -318,16 +317,16 @@ certbot renew
 ```bash
 lsof -i :3001
 kill <PID>
-systemctl restart planforge-api
+systemctl restart planforge
 ```
 
 ---
 
 ## 完成后
 
-✅ 后端地址：`https://planforge-api.lucaslinn.cc.cd`
+✅ 后端地址：`https://planforge.lucaslinn.cc.cd/api`
 
 ✅ 前端 Vercel 部署时，环境变量设置：
 ```
-NUXT_PUBLIC_API_BASE_URL=https://planforge-api.lucaslinn.cc.cd
+NUXT_PUBLIC_API_BASE_URL=https://planforge.lucaslinn.cc.cd
 ```
