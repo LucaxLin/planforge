@@ -29,7 +29,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://planforge.lucaslinn.cc.cd',
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://planforge-api.lucaslinn.cc.cd',
     },
   },
 

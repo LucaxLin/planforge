@@ -4,6 +4,6 @@
   "installCommand": "pnpm install",
   "framework": "nuxt",
   "env": {
-    "NUXT_PUBLIC_API_BASE_URL": "https://planforge.lucaslinn.cc.cd"
+    "NUXT_PUBLIC_API_BASE_URL": "https://planforge-api.lucaslinn.cc.cd"
   }
 }
