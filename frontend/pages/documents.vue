@@ -102,6 +102,7 @@
             </button>
 
             <button
+              v-if="doc.status !== 'completed'"
               @click.stop="refreshDocument(doc.id)"
               class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
               title="刷新状态"

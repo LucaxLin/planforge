@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { requirementService } from '../services/requirement.service.js';
+import { dbService } from '../services/database.service.js';
 import { aiService } from '../services/ai.service.js';
 import { analyzerSystemPrompt, analyzerUserPrompt } from '../prompts/analyzer.prompt.js';
 import logger from '../utils/logger.js';
@@ -37,11 +37,11 @@ export const chat = async (req: Request, res: Response) => {
     return;
   }
 
-  const requirement = requirementService.getRequirement(requirementId);
-  if (!requirement) {
+  const session = dbService.getSession(requirementId);
+  if (!session) {
     res.status(404).json({
       error: 'Not Found',
-      message: `Requirement ${requirementId} not found`,
+      message: `Session ${requirementId} not found`,
       statusCode: 404,
     });
     return;
@@ -56,23 +56,27 @@ export const chat = async (req: Request, res: Response) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     let fullResponse = '';
-    let history = requirementService.getConversationHistory(requirementId) || [];
     
-    history.push({ role: 'user', content: message });
-
     const messages: Message[] = [
       { role: 'system', content: analyzerSystemPrompt }
     ];
 
-    if (requirement) {
-      messages.push({ role: 'user', content: analyzerUserPrompt(requirement.content) });
+    if (session.requirement_content) {
+      messages.push({ role: 'user', content: analyzerUserPrompt(session.requirement_content) });
     }
 
-    messages.push(...history);
+    const history = dbService.getMessages(requirementId).filter(m => m.role !== 'system');
+    for (const h of history) {
+      messages.push({ role: h.role as 'user' | 'assistant', content: h.content });
+    }
+
+    messages.push({ role: 'user' as const, content: message });
+
+    dbService.addMessage(requirementId, 'user', message);
 
     aiService.configure(aiConfig);
 
-    logger.info('Starting streaming response', { requirementId });
+    logger.info('Starting streaming response', { requirementId, messageCount: messages.length, historyCount: history.length });
 
     try {
       for await (const chunk of aiService.chatStream(messages)) {
@@ -84,9 +88,9 @@ export const chat = async (req: Request, res: Response) => {
       res.write(`data: ${JSON.stringify({ error: 'Stream failed', done: true })}\n\n`);
     }
 
-    history.push({ role: 'assistant', content: fullResponse });
-    
-    const updatedHistory = requirementService.updateConversationHistory(requirementId, history);
+    dbService.addMessage(requirementId, 'assistant', fullResponse);
+
+    const updatedHistory = dbService.getMessages(requirementId).filter(m => m.role !== 'system');
 
     res.write(`data: ${JSON.stringify({ done: true, history: updatedHistory })}\n\n`);
     res.end();
@@ -120,11 +124,11 @@ export const generateSolution = async (req: Request, res: Response) => {
     return;
   }
 
-  const requirement = requirementService.getRequirement(requirementId);
-  if (!requirement) {
+  const session = dbService.getSession(requirementId);
+  if (!session) {
     res.status(404).json({
       error: 'Not Found',
-      message: `Requirement ${requirementId} not found`,
+      message: `Session ${requirementId} not found`,
       statusCode: 404,
     });
     return;
@@ -138,7 +142,7 @@ export const generateSolution = async (req: Request, res: Response) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
-    const history = requirementService.getConversationHistory(requirementId) || [];
+    const history = dbService.getMessages(requirementId).filter(m => m.role !== 'system');
     const conversationSummary = history.map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`).join('\n\n');
 
     const { generatorSystemPrompt } = await import('../prompts/generator.prompt.js');
@@ -146,7 +150,7 @@ export const generateSolution = async (req: Request, res: Response) => {
     
     const messages = [
       { role: 'system' as const, content: generatorSystemPrompt },
-      { role: 'user' as const, content: generatorUserPrompt(requirement.content, undefined, conversationSummary) }
+      { role: 'user' as const, content: generatorUserPrompt(session.requirement_content || '', undefined, conversationSummary) }
     ];
 
     aiService.configure(aiConfig);
@@ -190,20 +194,20 @@ export const getConversationHistory = async (req: Request, res: Response) => {
 
   logger.info('Get conversation history', { requirementId });
 
-  const requirement = requirementService.getRequirement(requirementId);
-  if (!requirement) {
+  const session = dbService.getSession(requirementId);
+  if (!session) {
     res.status(404).json({
       error: 'Not Found',
-      message: `Requirement ${requirementId} not found`,
+      message: `Session ${requirementId} not found`,
       statusCode: 404,
     });
     return;
   }
 
-  const history = requirementService.getConversationHistory(requirementId);
+  const messages = dbService.getMessages(requirementId);
 
   res.json({
     requirementId,
-    history,
+    history: messages,
   });
 };

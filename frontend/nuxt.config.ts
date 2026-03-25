@@ -1,5 +1,4 @@
 export default defineNuxtConfig({
-  compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
 
   modules: [
@@ -21,12 +20,6 @@ export default defineNuxtConfig({
     },
   },
 
-  runtimeConfig: {
-    public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api',
-    },
-  },
-
   css: ['~/assets/css/main.css'],
 
   typescript: {
@@ -34,7 +27,14 @@ export default defineNuxtConfig({
     typeCheck: false,
   },
 
-  nitro: {
-    preset: 'node-server',
+  vite: {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
+    },
   },
 })

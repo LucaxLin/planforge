@@ -163,8 +163,8 @@ content: 项目需求描述文本
   "content": "项目需求描述文本",
   "type": "text",
   "status": "pending",
-  "createdAt": "2024-01-01T00:00:00.000Z",
-  "updatedAt": "2024-01-01T00:00:00.000Z"
+  "createdAt": "当前日期",
+  "updatedAt": "当前日期"
 }
 ```
 

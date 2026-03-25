@@ -10,6 +10,13 @@ interface Document {
   updated_at: number
 }
 
+interface APIConfig {
+  provider: string
+  apiKey: string
+  baseURL?: string
+  model: string
+}
+
 export const useDocumentStore = defineStore('document', {
   state: () => ({
     documents: [] as Document[],
@@ -43,11 +50,22 @@ export const useDocumentStore = defineStore('document', {
       }
     },
 
-    async createDocument(sessionId: string, title: string = '项目实施计划') {
+    async createDocument(sessionId: string, title: string = '项目实施计划', apiConfig?: APIConfig) {
       try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
+
+        if (apiConfig) {
+          headers['x-api-provider'] = apiConfig.provider
+          headers['x-api-key'] = apiConfig.apiKey
+          headers['x-api-baseurl'] = apiConfig.baseURL || ''
+          headers['x-api-model'] = apiConfig.model
+        }
+
         const response = await fetch('/api/documents/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ sessionId, title }),
         })
         const data = await response.json()

@@ -119,8 +119,16 @@ export const useConversationStore = defineStore('conversation', {
     },
 
     async sendMessage(message: string, apiConfig: { provider: string, apiKey: string, baseURL?: string, model: string }) {
+      if (!apiConfig.apiKey) {
+        throw new Error('API key not configured')
+      }
+
       if (!this.currentSessionId) {
         await this.createSession()
+      }
+
+      if (!this.currentSessionId) {
+        throw new Error('Failed to create session')
       }
 
       this.isLoading = true
@@ -129,7 +137,7 @@ export const useConversationStore = defineStore('conversation', {
       this.currentMessages.push({ role: 'user', content: message })
 
       try {
-        const response = await fetch('/api/sessions/chat', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -152,8 +160,7 @@ export const useConversationStore = defineStore('conversation', {
         if (!reader) throw new Error('No response body')
 
         let fullResponse = ''
-        const assistantMessage: Message = { role: 'assistant', content: '' }
-        this.currentMessages.push(assistantMessage)
+        this.currentMessages.push({ role: 'assistant', content: '', _streamUpdate: Date.now() })
 
         while (true) {
           const { done, value } = await reader.read()
@@ -166,17 +173,16 @@ export const useConversationStore = defineStore('conversation', {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6))
-                if (data.content) {
+                if (data.content !== undefined) {
                   fullResponse += data.content
-                  assistantMessage.content = fullResponse
+                  const lastMsg = this.currentMessages[this.currentMessages.length - 1]
+                  if (lastMsg && lastMsg.role === 'assistant') {
+                    lastMsg.content = fullResponse
+                    lastMsg._streamUpdate = Date.now()
+                  }
                 }
-                if (data.done && data.history) {
-                  this.currentMessages = data.history.map((h: any) => ({
-                    id: Date.now(),
-                    role: h.role,
-                    content: h.content,
-                    created_at: Date.now(),
-                  }))
+                if (data.done) {
+                  return fullResponse
                 }
               } catch (e) {
                 // Ignore parse errors for partial data
@@ -185,7 +191,6 @@ export const useConversationStore = defineStore('conversation', {
           }
         }
 
-        await this.syncMessages()
         return fullResponse
 
       } catch (e: any) {
@@ -201,12 +206,15 @@ export const useConversationStore = defineStore('conversation', {
       if (!this.currentSessionId) return
 
       try {
+        const validMessages = this.currentMessages.filter(
+          msg => msg.role !== 'system' && msg.content && msg.content.trim()
+        )
+
         await fetch(`/api/sessions/${this.currentSessionId}/messages`, {
           method: 'DELETE',
         })
 
-        for (const msg of this.currentMessages) {
-          if (msg.role === 'system') continue
+        for (const msg of validMessages) {
           await fetch(`/api/sessions/${this.currentSessionId}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

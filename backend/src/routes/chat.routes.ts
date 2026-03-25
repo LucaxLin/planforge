@@ -8,7 +8,7 @@ import { asyncHandler } from '../middleware/error.middleware.js';
 
 const router = Router();
 
-router.post('/chat', asyncHandler(chat));
+router.post('/', asyncHandler(chat));
 router.post('/generate-solution', asyncHandler(generateSolution));
 router.get('/history/:requirementId', asyncHandler(getConversationHistory));
 

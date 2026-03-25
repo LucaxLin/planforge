@@ -1,185 +1,198 @@
-import Database from 'better-sqlite3';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, '../../data/planforge.db');
+const dataDir = path.join(__dirname, '../../data');
+const dbPath = path.join(dataDir, 'planforge.json');
 
-const db = new Database(dbPath);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
-db.pragma('journal_mode = WAL');
+interface Session {
+  id: string;
+  title: string;
+  requirement_content: string | null;
+  created_at: number;
+  updated_at: number;
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL DEFAULT '新对话',
-    requirement_content TEXT,
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-  );
+interface Message {
+  id: number;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: number;
+}
 
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
-    content TEXT NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
-  );
+interface Document {
+  id: number;
+  session_id: string;
+  title: string;
+  content: string | null;
+  status: 'pending' | 'generating' | 'completed' | 'failed';
+  created_at: number;
+  updated_at: number;
+}
 
-  CREATE TABLE IF NOT EXISTS documents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    content TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'generating', 'completed', 'failed')),
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
-  );
+interface Database {
+  sessions: Session[];
+  messages: Message[];
+  documents: Document[];
+  counters: { messages: number; documents: number };
+}
 
-  CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
-  CREATE INDEX IF NOT EXISTS idx_documents_session ON documents(session_id);
-  CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
-`);
+const defaultDb: Database = {
+  sessions: [],
+  messages: [],
+  documents: [],
+  counters: { messages: 0, documents: 0 }
+};
+
+let db: Database;
+
+const loadDb = (): Database => {
+  try {
+    if (fs.existsSync(dbPath)) {
+      const data = fs.readFileSync(dbPath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Failed to load database:', e);
+  }
+  return { ...defaultDb };
+};
+
+const saveDb = () => {
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save database:', e);
+  }
+};
+
+db = loadDb();
 
 class DatabaseService {
-  createSession(id: string, title: string = '新对话', requirementContent?: string) {
-    const stmt = db.prepare(`
-      INSERT INTO sessions (id, title, requirement_content, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+  createSession(id: string, title: string = '新对话', requirementContent?: string): Session {
     const now = Date.now();
-    stmt.run(id, title, requirementContent || null, now, now);
-    return this.getSession(id);
+    const session: Session = {
+      id,
+      title,
+      requirement_content: requirementContent || null,
+      created_at: now,
+      updated_at: now,
+    };
+    db.sessions.push(session);
+    saveDb();
+    return session;
   }
 
-  getSession(id: string) {
-    const stmt = db.prepare('SELECT * FROM sessions WHERE id = ?');
-    return stmt.get(id);
+  getSession(id: string): Session | undefined {
+    return db.sessions.find(s => s.id === id);
   }
 
-  getAllSessions() {
-    const stmt = db.prepare('SELECT * FROM sessions ORDER BY updated_at DESC');
-    return stmt.all();
+  getAllSessions(): Session[] {
+    return [...db.sessions].sort((a, b) => b.updated_at - a.updated_at);
   }
 
-  updateSession(id: string, updates: { title?: string; requirement_content?: string }) {
-    const fields: string[] = [];
-    const values: any[] = [];
+  updateSession(id: string, updates: { title?: string; requirement_content?: string }): Session | undefined {
+    const session = db.sessions.find(s => s.id === id);
+    if (!session) return undefined;
 
-    if (updates.title !== undefined) {
-      fields.push('title = ?');
-      values.push(updates.title);
-    }
-    if (updates.requirement_content !== undefined) {
-      fields.push('requirement_content = ?');
-      values.push(updates.requirement_content);
-    }
-
-    if (fields.length === 0) return this.getSession(id);
-
-    fields.push('updated_at = ?');
-    values.push(Date.now());
-    values.push(id);
-
-    const stmt = db.prepare(`UPDATE sessions SET ${fields.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
-    return this.getSession(id);
+    if (updates.title !== undefined) session.title = updates.title;
+    if (updates.requirement_content !== undefined) session.requirement_content = updates.requirement_content;
+    session.updated_at = Date.now();
+    saveDb();
+    return session;
   }
 
-  deleteSession(id: string) {
-    const stmt = db.prepare('DELETE FROM sessions WHERE id = ?');
-    return stmt.run(id);
+  deleteSession(id: string): void {
+    db.sessions = db.sessions.filter(s => s.id !== id);
+    db.messages = db.messages.filter(m => m.session_id !== id);
+    db.documents = db.documents.filter(d => d.session_id !== id);
+    saveDb();
   }
 
-  addMessage(sessionId: string, role: 'user' | 'assistant' | 'system', content: string) {
-    const stmt = db.prepare(`
-      INSERT INTO messages (session_id, role, content, created_at)
-      VALUES (?, ?, ?, ?)
-    `);
-    const now = Date.now();
-    stmt.run(sessionId, role, content, now);
+  addMessage(sessionId: string, role: 'user' | 'assistant' | 'system', content: string): Message[] {
+    db.counters.messages++;
+    const message: Message = {
+      id: db.counters.messages,
+      session_id: sessionId,
+      role,
+      content,
+      created_at: Date.now(),
+    };
+    db.messages.push(message);
 
-    db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(now, sessionId);
+    const session = db.sessions.find(s => s.id === sessionId);
+    if (session) session.updated_at = Date.now();
 
+    saveDb();
     return this.getMessages(sessionId);
   }
 
-  getMessages(sessionId: string) {
-    const stmt = db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC');
-    return stmt.all(sessionId);
+  getMessages(sessionId: string): Message[] {
+    return db.messages
+      .filter(m => m.session_id === sessionId)
+      .sort((a, b) => a.created_at - b.created_at);
   }
 
-  clearMessages(sessionId: string) {
-    const stmt = db.prepare('DELETE FROM messages WHERE session_id = ?');
-    return stmt.run(sessionId);
+  clearMessages(sessionId: string): void {
+    db.messages = db.messages.filter(m => m.session_id !== sessionId);
+    saveDb();
   }
 
-  createDocument(sessionId: string, title: string, status: string = 'pending') {
-    const stmt = db.prepare(`
-      INSERT INTO documents (session_id, title, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+  createDocument(sessionId: string, title: string, status: string = 'pending'): Document {
+    db.counters.documents++;
     const now = Date.now();
-    const result = stmt.run(sessionId, title, status, now, now);
-    return this.getDocument(result.lastInsertRowid as number);
+    const document: Document = {
+      id: db.counters.documents,
+      session_id: sessionId,
+      title,
+      content: null,
+      status: status as any,
+      created_at: now,
+      updated_at: now,
+    };
+    db.documents.push(document);
+    saveDb();
+    return document;
   }
 
-  getDocument(id: number) {
-    const stmt = db.prepare('SELECT * FROM documents WHERE id = ?');
-    return stmt.get(id);
+  getDocument(id: number): Document | undefined {
+    return db.documents.find(d => d.id === id);
   }
 
-  getDocumentBySession(sessionId: string) {
-    const stmt = db.prepare('SELECT * FROM documents WHERE session_id = ? ORDER BY created_at DESC LIMIT 1');
-    return stmt.get(sessionId);
+  getAllDocuments(): Document[] {
+    return [...db.documents].sort((a, b) => b.created_at - a.created_at);
   }
 
-  getAllDocuments() {
-    const stmt = db.prepare('SELECT * FROM documents ORDER BY created_at DESC');
-    return stmt.all();
+  getDocumentsBySession(sessionId: string): Document[] {
+    return db.documents
+      .filter(d => d.session_id === sessionId)
+      .sort((a, b) => b.created_at - a.created_at);
   }
 
-  getDocumentsBySession(sessionId: string) {
-    const stmt = db.prepare('SELECT * FROM documents WHERE session_id = ? ORDER BY created_at DESC');
-    return stmt.all(sessionId);
+  updateDocument(id: number, updates: { title?: string; content?: string; status?: string }): Document | undefined {
+    const document = db.documents.find(d => d.id === id);
+    if (!document) return undefined;
+
+    if (updates.title !== undefined) document.title = updates.title;
+    if (updates.content !== undefined) document.content = updates.content;
+    if (updates.status !== undefined) document.status = updates.status as any;
+    document.updated_at = Date.now();
+    saveDb();
+    return document;
   }
 
-  updateDocument(id: number, updates: { title?: string; content?: string; status?: string }) {
-    const fields: string[] = [];
-    const values: any[] = [];
-
-    if (updates.title !== undefined) {
-      fields.push('title = ?');
-      values.push(updates.title);
-    }
-    if (updates.content !== undefined) {
-      fields.push('content = ?');
-      values.push(updates.content);
-    }
-    if (updates.status !== undefined) {
-      fields.push('status = ?');
-      values.push(updates.status);
-    }
-
-    if (fields.length === 0) return this.getDocument(id);
-
-    fields.push('updated_at = ?');
-    values.push(Date.now());
-    values.push(id);
-
-    const stmt = db.prepare(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
-    return this.getDocument(id);
+  deleteDocument(id: number): void {
+    db.documents = db.documents.filter(d => d.id !== id);
+    saveDb();
   }
 
-  deleteDocument(id: number) {
-    const stmt = db.prepare('DELETE FROM documents WHERE id = ?');
-    return stmt.run(id);
-  }
-
-  getSessionById(id: string) {
+  getSessionById(id: string): Session | undefined {
     return this.getSession(id);
   }
 }

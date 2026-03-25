@@ -26,12 +26,12 @@ const extractAIConfig = (req: any): AIConfig => {
   };
 };
 
-router.get('/documents', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const documents = dbService.getAllDocuments();
   res.json({ documents });
 }));
 
-router.get('/documents/:id', asyncHandler(async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const document = dbService.getDocument(parseInt(req.params.id));
   if (!document) {
     res.status(404).json({ error: 'Document not found' });
@@ -40,7 +40,7 @@ router.get('/documents/:id', asyncHandler(async (req, res) => {
   res.json({ document });
 }));
 
-router.post('/documents/generate', asyncHandler(async (req, res) => {
+router.post('/generate', asyncHandler(async (req, res) => {
   const { sessionId, title } = req.body;
 
   if (!sessionId) {
@@ -54,6 +54,7 @@ router.post('/documents/generate', asyncHandler(async (req, res) => {
     return;
   }
 
+  const aiConfig = extractAIConfig(req);
   const document = dbService.createDocument(sessionId, title || '项目实施计划', 'generating');
 
   res.status(202).json({
@@ -63,8 +64,6 @@ router.post('/documents/generate', asyncHandler(async (req, res) => {
 
   setImmediate(async () => {
     try {
-      const aiConfig = extractAIConfig(req);
-
       const messages = dbService.getMessages(sessionId);
       const conversationSummary = messages
         .filter((m: any) => m.role !== 'system')
@@ -74,7 +73,7 @@ router.post('/documents/generate', asyncHandler(async (req, res) => {
       const fullPrompt = `**原始需求：**
 ${session.requirement_content || '未提供具体需求'}
 
-**对话历史摘要：**
+**对话历史：**
 ${conversationSummary || '无对话历史'}`;
 
       aiService.configure(aiConfig);
@@ -84,8 +83,13 @@ ${conversationSummary || '无对话历史'}`;
         { role: 'user', content: generateDocumentPrompt(fullPrompt) }
       ]);
 
+      const cleanContent = response
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .trim();
+
       dbService.updateDocument(document.id, {
-        content: response,
+        content: cleanContent,
         status: 'completed'
       });
 
@@ -107,7 +111,7 @@ ${conversationSummary || '无对话历史'}`;
   });
 }));
 
-router.patch('/documents/:id', asyncHandler(async (req, res) => {
+router.patch('/:id', asyncHandler(async (req, res) => {
   const { title, content, status } = req.body;
   const document = dbService.updateDocument(parseInt(req.params.id), { title, content, status });
   if (!document) {
@@ -117,7 +121,7 @@ router.patch('/documents/:id', asyncHandler(async (req, res) => {
   res.json({ document });
 }));
 
-router.delete('/documents/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   dbService.deleteDocument(parseInt(req.params.id));
   res.status(204).send();
 }));

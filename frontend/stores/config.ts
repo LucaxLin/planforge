@@ -21,7 +21,30 @@ export const useConfigStore = defineStore('config', {
   }),
 
   getters: {
-    isConfigured: (state) => !!state.apiKey && !!state.model,
+    isConfigured: (state) => {
+      if (!state._initialized && typeof window !== 'undefined') {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          try {
+            const config = JSON.parse(stored) as AIConfig
+            state.apiKey = config.apiKey
+          } catch {}
+        }
+      }
+      return !!state.apiKey && !!state.model
+    },
+    hasApiKey: (state) => {
+      if (!state._initialized && typeof window !== 'undefined') {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          try {
+            const config = JSON.parse(stored) as AIConfig
+            state.apiKey = config.apiKey
+          } catch {}
+        }
+      }
+      return !!state.apiKey
+    },
     
     config: (state): AIConfig => ({
       provider: state.provider,
@@ -33,6 +56,7 @@ export const useConfigStore = defineStore('config', {
 
   actions: {
     loadFromStorage() {
+      if (this._initialized) return
       if (typeof window === 'undefined') return
       
       try {
