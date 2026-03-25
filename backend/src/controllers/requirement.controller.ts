@@ -3,55 +3,25 @@ import { requirementService } from '../services/requirement.service.js';
 import { createRequirementSchema } from '../utils/validator.js';
 import { ZodError } from 'zod';
 import logger from '../utils/logger.js';
-import type { AIConfig } from '../types/index.js';
-
-const extractAIConfig = (req: Request): AIConfig => {
-  const provider = req.headers['x-api-provider'] as string;
-  const apiKey = req.headers['x-api-key'] as string;
-  const baseURL = req.headers['x-api-baseurl'] as string | undefined;
-  const model = req.headers['x-api-model'] as string;
-
-  logger.info('Extracting AI config from headers', {
-    hasProvider: !!provider,
-    hasApiKey: !!apiKey,
-    hasBaseURL: !!baseURL,
-    hasModel: !!model,
-    provider,
-    model,
-    baseURL,
-    apiKeyLength: apiKey ? apiKey.length : 0
-  });
-
-  if (!provider || !apiKey || !model) {
-    throw new Error('Missing required AI configuration headers');
-  }
-
-  return {
-    provider: provider as 'minimax' | 'zai' | 'custom',
-    apiKey,
-    baseURL,
-    model,
-  };
-};
 
 const parseFileContent = (file: Express.Multer.File): string => {
   const ext = file.originalname.split('.').pop()?.toLowerCase();
-  
+
   try {
     if (ext === 'txt' || ext === 'md') {
       return file.buffer.toString('utf-8');
     } else if (ext === 'doc' || ext === 'docx') {
-      logger.warn('Word document parsing - treating as plain text', { 
+      logger.warn('Word document parsing - treating as plain text', {
         filename: file.originalname,
-        size: file.size 
+        size: file.size
       });
       return file.buffer.toString('utf-8');
     }
     return file.buffer.toString('utf-8');
   } catch (error) {
-    logger.error('Failed to parse file', { 
+    logger.error('Failed to parse file', {
       error: error instanceof Error ? error.message : 'Unknown',
-      filename: file.originalname 
+      filename: file.originalname
     });
     throw new Error('Failed to parse file content');
   }
@@ -67,14 +37,14 @@ export const createRequirement = async (req: Request, res: Response) => {
       title = req.body.title || '未命名需求';
       content = req.body.content || '';
       type = 'text';
-      
+
       if (req.file) {
-        logger.info('File uploaded', { 
-          filename: req.file.originalname, 
+        logger.info('File uploaded', {
+          filename: req.file.originalname,
           size: req.file.size,
-          mimetype: req.file.mimetype 
+          mimetype: req.file.mimetype
         });
-        
+
         content = parseFileContent(req.file);
         type = 'document';
       }
@@ -104,8 +74,8 @@ export const createRequirement = async (req: Request, res: Response) => {
         statusCode: 400,
       });
     } else {
-      logger.error('Create requirement failed', { 
-        error: error instanceof Error ? error.message : 'Unknown' 
+      logger.error('Create requirement failed', {
+        error: error instanceof Error ? error.message : 'Unknown'
       });
       throw error;
     }
@@ -159,57 +129,6 @@ export const deleteRequirement = async (req: Request, res: Response) => {
 
   requirementService.updateRequirement(id, { status: 'failed' } as any);
   res.status(204).send();
-};
-
-export const analyzeRequirement = async (req: Request, res: Response) => {
-  const { id } = req.params;
-
-  logger.info('Analyze requirement request received', { id });
-
-  const requirement = requirementService.getRequirement(id);
-  if (!requirement) {
-    logger.error('Requirement not found', { id });
-    res.status(404).json({
-      error: 'Not Found',
-      message: `Requirement ${id} not found`,
-      statusCode: 404,
-    });
-    return;
-  }
-
-  logger.info('Requirement found', { 
-    id, 
-    title: requirement.title, 
-    contentLength: requirement.content.length 
-  });
-
-  try {
-    const aiConfig = extractAIConfig(req);
-    logger.info('AI config extracted successfully', { 
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-      hasApiKey: !!aiConfig.apiKey
-    });
-
-    const analysis = await requirementService.analyzeRequirement(requirement.content, aiConfig);
-
-    requirementService.updateRequirement(id, {
-      status: 'completed',
-      analysis,
-    });
-
-    res.json({
-      requirementId: id,
-      analysis,
-    });
-  } catch (error) {
-    logger.error('Analysis failed', { 
-      error: error instanceof Error ? error.message : 'Unknown',
-      id 
-    });
-    requirementService.updateRequirement(id, { status: 'failed' } as any);
-    throw error;
-  }
 };
 
 export const uploadDocument = async (req: Request, res: Response) => {

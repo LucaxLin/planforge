@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Requirement, Session, Solution, AIConfig, Message } from '../types/index.js';
+import type { Requirement, Solution, AIConfig, Message } from '../types/index.js';
 import { aiService } from './ai.service.js';
 import { analyzerSystemPrompt, analyzerUserPrompt } from '../prompts/analyzer.prompt.js';
 import { generatorSystemPrompt, generateDocumentPrompt } from '../prompts/generator.prompt.js';
@@ -15,7 +15,6 @@ interface SessionContext {
 
 class RequirementService {
   private requirements: Map<string, Requirement> = new Map();
-  private sessions: Map<string, Session> = new Map();
   private conversationHistory: Map<string, Message[]> = new Map();
   private sessionContext: Map<string, SessionContext> = new Map();
 

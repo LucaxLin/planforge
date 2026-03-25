@@ -38,10 +38,10 @@ echo -e "${YELLOW}[3/6] Copying application files...${NC}"
 # Run this from your local machine:
 # rsync -avz --exclude='node_modules' --exclude='.git' --exclude='data' ./backend/ user@your-server:$APP_DIR/
 
-# Step 4: Install Node.js dependencies
+# Install Node.js dependencies (including tsx for running TypeScript directly)
 echo -e "${YELLOW}[4/6] Installing Node.js dependencies...${NC}"
 cd $APP_DIR
-npm install --production
+npm install --include=dev
 
 # Step 5: Set permissions
 echo -e "${YELLOW}[5/6] Setting permissions...${NC}"
@@ -73,7 +73,7 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=$APP_DIR
-ExecStart=$(which node) $APP_DIR/src/app.ts
+ExecStart=$(which npx) tsx src/app.ts
 Restart=on-failure
 Environment=NODE_ENV=production
 EnvironmentFile=$APP_DIR/.env

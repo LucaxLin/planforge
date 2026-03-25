@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import {
   chat,
   generateSolution,
@@ -6,7 +6,7 @@ import {
 } from '../controllers/chat.controller.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 router.post('/', asyncHandler(chat));
 router.post('/generate-solution', asyncHandler(generateSolution));

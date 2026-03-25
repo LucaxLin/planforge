@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter, type Request, type Response } from 'express';
 import { dbService } from '../services/database.service.js';
 import { aiService } from '../services/ai.service.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
@@ -6,9 +6,9 @@ import { generatorSystemPrompt, generateDocumentPrompt } from '../prompts/genera
 import type { AIConfig } from '../types/index.js';
 import logger from '../utils/logger.js';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
-const extractAIConfig = (req: any): AIConfig => {
+const extractAIConfig = (req: Request): AIConfig => {
   const provider = req.headers['x-api-provider'] as string;
   const apiKey = req.headers['x-api-key'] as string;
   const baseURL = req.headers['x-api-baseurl'] as string | undefined;
@@ -26,12 +26,12 @@ const extractAIConfig = (req: any): AIConfig => {
   };
 };
 
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   const documents = dbService.getAllDocuments();
   res.json({ documents });
 }));
 
-router.get('/:id', asyncHandler(async (req, res) => {
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const document = dbService.getDocument(parseInt(req.params.id));
   if (!document) {
     res.status(404).json({ error: 'Document not found' });
@@ -40,7 +40,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json({ document });
 }));
 
-router.post('/generate', asyncHandler(async (req, res) => {
+router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
   const { sessionId, title } = req.body;
 
   if (!sessionId) {
@@ -111,7 +111,7 @@ ${conversationSummary || '无对话历史'}`;
   });
 }));
 
-router.patch('/:id', asyncHandler(async (req, res) => {
+router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { title, content, status } = req.body;
   const document = dbService.updateDocument(parseInt(req.params.id), { title, content, status });
   if (!document) {
@@ -121,7 +121,7 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   res.json({ document });
 }));
 
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   dbService.deleteDocument(parseInt(req.params.id));
   res.status(204).send();
 }));

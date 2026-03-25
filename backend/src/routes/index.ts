@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import requirementRoutes from './requirement.routes.js';
 import chatRoutes from './chat.routes.js';
 import documentsRoutes from './documents.routes.js';
 import sessionRoutes from './session.routes.js';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 router.use('/requirements', requirementRoutes);
 router.use('/chat', chatRoutes);

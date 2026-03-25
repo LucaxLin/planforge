@@ -4,7 +4,7 @@ import { Request } from 'express';
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedMimes = [
     'text/plain',
     'text/markdown',

@@ -1,11 +1,11 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import logger from './utils/logger.js';
 
-const app = express();
+const app: Express = express();
 
 app.use(cors({
   origin: config.cors.origin,
@@ -15,7 +15,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get('user-agent'),
@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
