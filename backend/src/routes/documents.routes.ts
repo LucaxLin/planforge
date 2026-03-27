@@ -2,11 +2,14 @@ import { Router, type Router as ExpressRouter, type Request, type Response } fro
 import { dbService } from '../services/database.service.js';
 import { aiService } from '../services/ai.service.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
 import { generatorSystemPrompt, generateDocumentPrompt } from '../prompts/generator.prompt.js';
 import type { AIConfig } from '../types/index.js';
 import logger from '../utils/logger.js';
 
 const router: ExpressRouter = Router();
+
+router.use(requireAuth);
 
 const extractAIConfig = (req: Request): AIConfig => {
   const provider = req.headers['x-api-provider'] as string;

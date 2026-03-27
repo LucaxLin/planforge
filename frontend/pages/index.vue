@@ -13,58 +13,15 @@
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto">
-        <div class="p-2 space-y-1">
-          <div
-            v-for="session in conversationStore.sortedSessions"
-            :key="session.id"
-            class="group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors"
-            :class="conversationStore.currentSessionId === session.id
-              ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-              : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'"
-          >
-            <div class="flex-1 flex items-center gap-2 min-w-0" @click="loadConversation(session.id)">
-              <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span class="truncate text-sm">{{ session.title }}</span>
-            </div>
-            <div v-if="deletingSessionId === session.id" class="flex items-center gap-1">
-              <button
-                @click.stop="confirmDelete(session.id)"
-                class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                确认
-              </button>
-              <button
-                @click.stop="cancelDelete"
-                class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                取消
-              </button>
-            </div>
-            <button
-              v-else
-              @click.stop="startDelete(session.id)"
-              class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
-            >
-              <svg class="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-
-          <div v-if="conversationStore.sortedSessions.length === 0" class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
-            暂无对话记录
-          </div>
-        </div>
-      </div>
+      <SessionList
+        :sessions="conversationStore.sortedSessions"
+        :current-session-id="conversationStore.currentSessionId"
+        :deleting-id="deletingSessionId"
+        @select="loadConversation"
+        @start-delete="startDelete"
+        @confirm-delete="confirmDelete"
+        @cancel-delete="cancelDelete"
+      />
 
       <div class="h-14 px-4 flex items-center">
         <div class="flex items-center gap-2 w-full">
@@ -92,7 +49,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <h1 class="font-medium text-gray-900 dark:text-white truncate" :title=" conversationStore.currentSession?.title || '新对话'">{{ conversationStore.currentSession?.title || '新对话' }}</h1>
+        <h1 class="font-medium text-gray-900 dark:text-white truncate">{{ conversationStore.currentSession?.title || '新对话' }}</h1>
         <div class="flex items-center gap-2">
           <button
             v-if="conversationStore.currentMessages.length > 0"
@@ -115,9 +72,7 @@
             @click="generateDocument"
             :disabled="isGeneratingDoc || !hasApiKey"
             class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-            :class="hasApiKey
-              ? 'tech-gradient text-white hover:opacity-90'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'"
+            :class="hasApiKey ? 'tech-gradient text-white hover:opacity-90' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'"
           >
             {{ isGeneratingDoc ? '生成中...' : '生成完整方案' }}
           </button>
@@ -126,117 +81,30 @@
 
       <div ref="chatContainer" class="flex-1 overflow-y-auto chat-scroll">
         <div class="max-w-3xl mx-auto px-4 py-6">
-          <div v-if="conversationStore.currentMessages.length === 0" class="flex flex-col items-center justify-center h-full text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6">
-              <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              有什么可以帮您的？
-            </h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-8">
-              描述您的项目需求，我可以帮您分析并生成详细的技术实现方案
-            </p>
-            <div class="grid grid-cols-2 gap-2 max-w-md">
-              <button
-                v-for="example in examples"
-                :key="example"
-                @click="startWithExample(example)"
-                class="px-4 py-2.5 text-sm text-left bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors text-gray-700 dark:text-gray-300"
-              >
-                {{ example }}
-              </button>
-            </div>
-          </div>
+          <EmptyState
+            v-if="conversationStore.currentMessages.length === 0"
+            :examples="examples"
+            @select="startWithExample"
+          />
 
           <div v-else class="space-y-6">
-            <div
+            <ChatMessage
               v-for="(message, index) in conversationStore.currentMessages"
               :key="index"
-              class="flex gap-3"
-              :class="message.role === 'user' ? 'flex-row-reverse' : ''"
-            >
-              <div
-                class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                :class="message.role === 'user'
-                  ? 'bg-indigo-600'
-                  : 'bg-gradient-to-br from-indigo-500 to-purple-600'"
-              >
-                <svg v-if="message.role === 'user'" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <svg v-else class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div class="flex-1 flex max-w-2xl" :class="message.role === 'user' ? ' justify-end' : ''">
-                <div
-                  class="px-4 py-3 rounded-2xl text-sm leading-relaxed"
-                  :class="message.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-tr-sm'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm'"
-                >
-                  <div v-if="message.role === 'assistant'" class="markdown-content" v-html="renderMarkdown(message.content)"></div>
-                  <div v-else>{{ message.content }}</div>
-                </div>
-              </div>
-            </div>
+              :message="message"
+            />
 
-            <div v-if="conversationStore.isLoading" class="flex gap-3">
-              <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div class="flex-1 max-w-2xl">
-                <div class="bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm inline-block">
-                  <div class="flex gap-1">
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-                    <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <LoadingIndicator v-if="conversationStore.isLoading" />
           </div>
         </div>
       </div>
 
-      <div class="h-14 px-4 flex items-center bg-white dark:bg-gray-900">
-        <div class="max-w-3xl mx-auto flex items-center gap-3 w-full">
-          <ClientOnly>
-            <div v-if="!hasApiKey" class="text-center py-3">
-              <span class="text-sm text-gray-500 dark:text-gray-400">请先</span>
-              <NuxtLink to="/config" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mx-1">配置 AI</NuxtLink>
-              <span class="text-sm text-gray-500 dark:text-gray-400">开始对话</span>
-            </div>
-            <div v-else class="flex gap-3 w-full">
-              <input
-                v-model="userInput"
-                type="text"
-                @keydown.enter="sendMessage"
-                :disabled="conversationStore.isLoading"
-                placeholder="输入您的需求..."
-                class="flex-1 h-9 px-4 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-              />
-              <button
-                @click="sendMessage"
-                :disabled="!userInput.trim() || conversationStore.isLoading"
-                class="h-9 px-4 tech-gradient text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex-shrink-0"
-              >
-                发送
-              </button>
-            </div>
-            <template #fallback>
-              <div class="flex gap-3 w-full">
-                <div class="flex-1 h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse"></div>
-                <div class="w-16 h-9 tech-gradient rounded-lg animate-pulse flex-shrink-0"></div>
-              </div>
-            </template>
-          </ClientOnly>
-        </div>
-      </div>
+      <ChatInput
+        v-model="userInput"
+        :has-api-key="hasApiKey"
+        :disabled="conversationStore.isLoading"
+        @send="sendMessage"
+      />
     </main>
 
     <Teleport to="body">
@@ -278,28 +146,7 @@
               >
                 {{ session.title }}
               </span>
-              <div v-if="deletingSessionId === session.id" class="flex items-center gap-1">
-                <button
-                  @click.stop="confirmDelete(session.id)"
-                  class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  确认
-                </button>
-                <button
-                  @click.stop="cancelDelete"
-                  class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  取消
-                </button>
-              </div>
               <button
-                v-else
                 @click.stop="startDelete(session.id)"
                 class="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
               >
@@ -336,41 +183,16 @@
       </div>
     </Teleport>
 
-    <Teleport to="body">
-      <Transition name="toast">
-        <div v-if="showDocToast" class="fixed top-4 right-4 z-50 px-4 py-3 bg-gray-900 dark:bg-gray-800 text-white rounded-lg shadow-lg flex items-center gap-3 text-sm max-w-sm">
-          <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-            <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="font-medium">{{ docToastMessage }}</p>
-          </div>
-          <NuxtLink to="/documents" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-md text-white text-xs font-medium transition-colors whitespace-nowrap">
-            查看
-          </NuxtLink>
-        </div>
-      </Transition>
+    <DocToast
+      :show="showDocToast"
+      :message="docToastMessage"
+    />
 
-      <Transition name="toast-error">
-        <div v-if="error" class="fixed top-4 right-4 z-50 px-4 py-3 bg-red-600 text-white rounded-lg shadow-lg flex items-center gap-3 text-sm max-w-sm">
-          <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="font-medium">{{ error }}</p>
-          </div>
-          <button @click="error = ''" class="p-1 hover:bg-white/20 rounded transition-colors">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
+    <ErrorToast
+      :show="!!error"
+      :message="error"
+      @close="error = ''"
+    />
   </div>
 </template>
 
@@ -379,7 +201,13 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useConfigStore } from '~/stores/config'
 import { useConversationStore } from '~/stores/conversation'
 import { useDocumentStore } from '~/stores/documents'
-import { marked } from 'marked'
+import EmptyState from '~/components/EmptyState.vue'
+import ChatMessage from '~/components/ChatMessage.vue'
+import LoadingIndicator from '~/components/LoadingIndicator.vue'
+import SessionList from '~/components/SessionList.vue'
+import ChatInput from '~/components/ChatInput.vue'
+import DocToast from '~/components/DocToast.vue'
+import ErrorToast from '~/components/ErrorToast.vue'
 
 definePageMeta({
   layout: 'default',
@@ -407,22 +235,6 @@ const examples = [
 
 const hasApiKey = computed(() => !!configStore.apiKey)
 
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-})
-
-const renderMarkdown = (content: string): string => {
-  if (!content) return ''
-  let html = marked.parse(content) as string
-  html = html.replace(/<pre><code(?: class="language-(\w+)")?>/g, (match, lang) => {
-    const language = lang || 'text'
-    return `<div class="code-block"><div class="code-header"><span class="code-lang">${language}</span><button class="copy-btn">复制</button></div><pre><code class="language-${language}">`
-  })
-  html = html.replace(/<\/code><\/pre>/g, '</code></pre></div>')
-  return html
-}
-
 onMounted(async () => {
   await Promise.all([
     conversationStore.loadSessions(),
@@ -436,16 +248,12 @@ onMounted(async () => {
 
 watch(
   () => conversationStore.currentMessages.length,
-  () => {
-    scrollToBottom()
-  }
+  () => scrollToBottom()
 )
 
 watch(
   () => conversationStore.currentMessages[conversationStore.currentMessages.length - 1]?._streamUpdate,
-  () => {
-    scrollToBottom()
-  }
+  () => scrollToBottom()
 )
 
 const scrollToBottom = async () => {
@@ -526,7 +334,7 @@ const generateDocument = async () => {
   isGeneratingDoc.value = true
 
   try {
-    const doc = await documentStore.createDocument(
+    await documentStore.createDocument(
       conversationStore.currentSessionId,
       conversationStore.currentSession?.title || '项目实施计划',
       {
@@ -554,95 +362,5 @@ const generateDocument = async () => {
 <style scoped>
 .chat-scroll {
   scroll-behavior: smooth;
-}
-
-.toast-enter-active {
-  animation: slideIn 0.3s ease-out;
-}
-
-.toast-leave-active {
-  animation: slideOut 0.3s ease-in;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideOut {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-.toast-error-enter-active {
-  animation: slideIn 0.3s ease-out;
-}
-
-.toast-error-leave-active {
-  animation: slideOut 0.3s ease-in;
-}
-
-.markdown-content :deep(.code-block) {
-  @apply my-3 rounded-lg overflow-hidden bg-gray-900;
-}
-
-.markdown-content :deep(.code-header) {
-  @apply flex items-center justify-between px-3 py-1.5 bg-gray-800 text-xs;
-}
-
-.markdown-content :deep(.code-lang) {
-  @apply text-gray-400 font-mono;
-}
-
-.markdown-content :deep(.copy-btn) {
-  @apply px-2 py-0.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors;
-}
-
-.markdown-content :deep(pre) {
-  @apply p-3 overflow-x-auto text-sm;
-}
-
-.markdown-content :deep(code) {
-  @apply font-mono text-gray-100;
-}
-
-.markdown-content :deep(pre code) {
-  @apply bg-transparent;
-}
-
-.markdown-content :deep(p:not(:last-child)) {
-  @apply mb-3;
-}
-
-.markdown-content :deep(ul), .markdown-content :deep(ol) {
-  @apply pl-5 mb-3;
-}
-
-.markdown-content :deep(li) {
-  @apply mb-1;
-}
-
-.markdown-content :deep(h2) {
-  @apply text-lg font-semibold mt-4 mb-2 text-gray-900 dark:text-white;
-}
-
-.markdown-content :deep(h3) {
-  @apply text-base font-semibold mt-3 mb-2 text-gray-900 dark:text-white;
-}
-
-.markdown-content :deep(p code) {
-  @apply px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm text-indigo-600 dark:text-indigo-400;
 }
 </style>

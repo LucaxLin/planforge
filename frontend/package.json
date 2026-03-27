@@ -16,6 +16,7 @@
     "@milkdown/prose": "^7.5.1",
     "@milkdown/vue": "^7.5.1",
     "@pinia/nuxt": "^0.5.5",
+    "@vueuse/core": "^14.2.1",
     "marked": "^17.0.4",
     "nuxt": "^3.14.0",
     "pinia": "^2.2.4",

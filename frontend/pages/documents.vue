@@ -208,7 +208,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useDocumentStore } from '~/stores/documents'
-import { useConversationStore } from '~/stores/conversation'
 import { marked } from 'marked'
 
 definePageMeta({
@@ -216,7 +215,6 @@ definePageMeta({
 })
 
 const documentStore = useDocumentStore()
-const conversationStore = useConversationStore()
 const selectedDocument = ref<any>(null)
 
 onMounted(async () => {

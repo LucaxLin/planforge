@@ -9,26 +9,74 @@ const getApiBase = () => {
   return 'https://planforge-api.lucaslinn.cc.cd'
 }
 
+const redirectToLogin = () => {
+  if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    window.location.href = '/login'
+  }
+}
+
 const baseFetch = async (endpoint: string, options: RequestInit = {}) => {
   const baseUrl = getApiBase()
   const url = `${baseUrl}/api${endpoint}`
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`)
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
   }
 
-  return response.json()
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include',
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      redirectToLogin()
+    }
+    throw new Error(data.error || `API Error: ${response.status}`)
+  }
+
+  return data
 }
 
 export const api = {
+  auth: {
+    getCurrentUser: () => baseFetch('/auth/me'),
+
+    sendRegisterCode: (data: {
+      email: string;
+      password: string;
+      confirmPassword: string;
+    }) => baseFetch('/auth/register/send-code', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    verifyRegister: (data: {
+      email: string;
+      code: string;
+      password: string;
+    }) => baseFetch('/auth/register/verify', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    login: (data: {
+      email: string;
+      password: string;
+    }) => baseFetch('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    logout: () => baseFetch('/auth/logout', {
+      method: 'POST',
+    }),
+  },
+
   sessions: {
     list: () => baseFetch('/sessions'),
 

@@ -2,8 +2,11 @@ import { Router, type Router as ExpressRouter, type Request, type Response } fro
 import { v4 as uuidv4 } from 'uuid';
 import { dbService } from '../services/database.service.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router: ExpressRouter = Router();
+
+router.use(requireAuth);
 
 router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   const sessions = dbService.getAllSessions();

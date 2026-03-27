@@ -225,14 +225,45 @@ const getAvailableModels = () => {
 }
 
 const testConnection = async () => {
-  if (!form.apiKey) return
+  if (!form.value.apiKey) return
 
   isTesting.value = true
   errorMessage.value = ''
   successMessage.value = ''
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    let baseURL = ''
+    let model = form.value.model
+
+    if (form.value.provider === 'minimax') {
+      baseURL = 'https://api.minimaxi.com/v1'
+      if (model === '__custom__') {
+        model = form.value.customModelId
+      }
+    } else if (form.value.provider === 'zai') {
+      baseURL = 'https://open.bigmodel.cn/api/paas/v4'
+    } else {
+      baseURL = form.value.baseURL
+    }
+
+    const response = await fetch(`${baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${form.value.apiKey}`
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 5
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error?.message || `连接失败 (${response.status})`)
+    }
+
     successMessage.value = '连接测试成功！'
   } catch (e: any) {
     errorMessage.value = e.message || '连接测试失败'
