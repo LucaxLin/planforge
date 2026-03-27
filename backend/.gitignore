@@ -5,6 +5,5 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 .env
-!.env.example
-!.env.dev
-!.env.prod
+.env.dev
+.env.prod

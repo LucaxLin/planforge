@@ -9,7 +9,7 @@ dist/
 .nuxt/
 output/
 
-# Environment files
+# Environment files - ignore all except example
 .env
 .env.local
 .env.*.local
