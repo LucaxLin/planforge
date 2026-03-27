@@ -126,8 +126,9 @@
       </div>
     </div>
 
-    <div v-if="selectedDocument" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="closeDocument">
-      <div class="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" @click.stop>
+    <Teleport to="body">
+      <div v-if="selectedDocument" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4" @click="closeDocument">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" @click.stop>
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-lg flex items-center justify-center" :class="getStatusIconClass(selectedDocument.status)">
@@ -201,7 +202,8 @@
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 

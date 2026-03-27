@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { api } from '~/utils/api'
 
 const isAuthenticated = ref(false)
 const currentUser = ref<{ id: string; email: string; created_at: number } | null>(null)
@@ -10,13 +11,9 @@ export const useAuth = () => {
     isChecking = true
 
     try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include',
-      })
+      const data = await api.auth.getCurrentUser()
 
-      const data = await response.json()
-
-      if (response.ok && data.isLoggedIn && data.user) {
+      if (data.isLoggedIn && data.user) {
         isAuthenticated.value = true
         currentUser.value = data.user
       } else {
@@ -33,10 +30,7 @@ export const useAuth = () => {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      })
+      await api.auth.logout()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {

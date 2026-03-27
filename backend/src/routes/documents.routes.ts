@@ -29,13 +29,19 @@ const extractAIConfig = (req: Request): AIConfig => {
   };
 };
 
-router.get('/', asyncHandler(async (_req: Request, res: Response) => {
-  const documents = dbService.getAllDocuments();
+const getUserId = (req: Request): string => {
+  return (req as any).userId;
+};
+
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const userId = getUserId(req);
+  const documents = dbService.getAllDocuments(userId);
   res.json({ documents });
 }));
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const document = dbService.getDocument(parseInt(req.params.id));
+  const userId = getUserId(req);
+  const document = dbService.getDocument(userId, parseInt(req.params.id));
   if (!document) {
     res.status(404).json({ error: 'Document not found' });
     return;
@@ -44,6 +50,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
+  const userId = getUserId(req);
   const { sessionId, title } = req.body;
 
   if (!sessionId) {
@@ -51,14 +58,14 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  const session = dbService.getSession(sessionId);
+  const session = dbService.getSession(userId, sessionId);
   if (!session) {
     res.status(404).json({ error: 'Session not found' });
     return;
   }
 
   const aiConfig = extractAIConfig(req);
-  const document = dbService.createDocument(sessionId, title || '项目实施计划', 'generating');
+  const document = dbService.createDocument(userId, sessionId, title || '项目实施计划', 'generating');
 
   res.status(202).json({
     document,
@@ -67,7 +74,7 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
 
   setImmediate(async () => {
     try {
-      const messages = dbService.getMessages(sessionId);
+      const messages = dbService.getMessages(userId, sessionId);
       const conversationSummary = messages
         .filter((m: any) => m.role !== 'system')
         .map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`)
@@ -91,12 +98,13 @@ ${conversationSummary || '无对话历史'}`;
         .replace(/<think>[\s\S]*?<\/think>/gi, '')
         .trim();
 
-      dbService.updateDocument(document.id, {
+      dbService.updateDocument(userId, document.id, {
         content: cleanContent,
         status: 'completed'
       });
 
       logger.info('Async document generation completed', {
+        userId,
         documentId: document.id,
         sessionId,
         contentLength: response.length
@@ -104,10 +112,11 @@ ${conversationSummary || '无对话历史'}`;
 
     } catch (error) {
       logger.error('Async document generation failed', {
+        userId,
         documentId: document.id,
         error: error instanceof Error ? error.message : 'Unknown'
       });
-      dbService.updateDocument(document.id, {
+      dbService.updateDocument(userId, document.id, {
         status: 'failed'
       });
     }
@@ -115,8 +124,9 @@ ${conversationSummary || '无对话历史'}`;
 }));
 
 router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const userId = getUserId(req);
   const { title, content, status } = req.body;
-  const document = dbService.updateDocument(parseInt(req.params.id), { title, content, status });
+  const document = dbService.updateDocument(userId, parseInt(req.params.id), { title, content, status });
   if (!document) {
     res.status(404).json({ error: 'Document not found' });
     return;
@@ -125,7 +135,8 @@ router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  dbService.deleteDocument(parseInt(req.params.id));
+  const userId = getUserId(req);
+  dbService.deleteDocument(userId, parseInt(req.params.id));
   res.status(204).send();
 }));
 

@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { dbService } from '../services/database.service.js';
 import { emailService } from '../services/email.service.js';
-import { captchaService } from '../services/captcha.service.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import config from '../config/index.js';
 
@@ -40,14 +39,6 @@ const verifyToken = (token: string): { userId: string; iat: number } | null => {
     return null;
   }
 };
-
-export const getCaptcha = asyncHandler(async (_req: Request, res: Response) => {
-  const captcha = captchaService.generateCaptcha();
-  res.json({
-    captchaId: captcha.captchaId,
-    captchaData: captcha.captchaData,
-  });
-});
 
 export const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
   // Read token from Cookie instead of Authorization header

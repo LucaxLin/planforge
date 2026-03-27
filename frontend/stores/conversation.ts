@@ -207,5 +207,14 @@ export const useConversationStore = defineStore('conversation', {
         this.syncMessages()
       }
     },
+
+    clearAll() {
+      this.sessions = []
+      this.currentSessionId = null
+      this.currentMessages = []
+      this.isLoading = false
+      this.isGenerating = false
+      this.error = null
+    },
   },
 })

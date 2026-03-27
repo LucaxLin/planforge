@@ -23,10 +23,15 @@ const extractAIConfig = (req: Request): AIConfig => {
   };
 };
 
+const getUserId = (req: Request): string => {
+  return (req as any).userId;
+};
+
 export const chat = async (req: Request, res: Response) => {
+  const userId = getUserId(req);
   const { requirementId, message } = req.body;
 
-  logger.info('Chat request received', { requirementId, messageLength: message?.length });
+  logger.info('Chat request received', { userId, requirementId, messageLength: message?.length });
 
   if (!requirementId || !message) {
     res.status(400).json({
@@ -37,7 +42,7 @@ export const chat = async (req: Request, res: Response) => {
     return;
   }
 
-  const session = dbService.getSession(requirementId);
+  const session = dbService.getSession(userId, requirementId);
   if (!session) {
     res.status(404).json({
       error: 'Not Found',
@@ -49,14 +54,14 @@ export const chat = async (req: Request, res: Response) => {
 
   try {
     const aiConfig = extractAIConfig(req);
-    
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
     let fullResponse = '';
-    
+
     const messages: Message[] = [
       { role: 'system', content: analyzerSystemPrompt }
     ];
@@ -65,14 +70,14 @@ export const chat = async (req: Request, res: Response) => {
       messages.push({ role: 'user', content: analyzerUserPrompt(session.requirement_content) });
     }
 
-    const history = dbService.getMessages(requirementId).filter(m => m.role !== 'system');
+    const history = dbService.getMessages(userId, requirementId).filter(m => m.role !== 'system');
     for (const h of history) {
       messages.push({ role: h.role as 'user' | 'assistant', content: h.content });
     }
 
     messages.push({ role: 'user' as const, content: message });
 
-    dbService.addMessage(requirementId, 'user', message);
+    dbService.addMessage(userId, requirementId, 'user', message);
 
     aiService.configure(aiConfig);
 
@@ -88,9 +93,9 @@ export const chat = async (req: Request, res: Response) => {
       res.write(`data: ${JSON.stringify({ error: 'Stream failed', done: true })}\n\n`);
     }
 
-    dbService.addMessage(requirementId, 'assistant', fullResponse);
+    dbService.addMessage(userId, requirementId, 'assistant', fullResponse);
 
-    const updatedHistory = dbService.getMessages(requirementId).filter(m => m.role !== 'system');
+    const updatedHistory = dbService.getMessages(userId, requirementId).filter(m => m.role !== 'system');
 
     res.write(`data: ${JSON.stringify({ done: true, history: updatedHistory })}\n\n`);
     res.end();
@@ -98,9 +103,9 @@ export const chat = async (req: Request, res: Response) => {
     logger.info('Chat stream completed', { requirementId, responseLength: fullResponse.length });
 
   } catch (error) {
-    logger.error('Chat failed', { 
+    logger.error('Chat failed', {
       error: error instanceof Error ? error.message : 'Unknown',
-      requirementId 
+      requirementId
     });
     res.status(500).json({
       error: 'Internal Server Error',
@@ -111,9 +116,10 @@ export const chat = async (req: Request, res: Response) => {
 };
 
 export const generateSolution = async (req: Request, res: Response) => {
+  const userId = getUserId(req);
   const { requirementId } = req.body;
 
-  logger.info('Generate solution request received', { requirementId });
+  logger.info('Generate solution request received', { userId, requirementId });
 
   if (!requirementId) {
     res.status(400).json({
@@ -124,7 +130,7 @@ export const generateSolution = async (req: Request, res: Response) => {
     return;
   }
 
-  const session = dbService.getSession(requirementId);
+  const session = dbService.getSession(userId, requirementId);
   if (!session) {
     res.status(404).json({
       error: 'Not Found',
@@ -136,18 +142,18 @@ export const generateSolution = async (req: Request, res: Response) => {
 
   try {
     const aiConfig = extractAIConfig(req);
-    
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
-    const history = dbService.getMessages(requirementId).filter(m => m.role !== 'system');
+    const history = dbService.getMessages(userId, requirementId).filter(m => m.role !== 'system');
     const conversationSummary = history.map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`).join('\n\n');
 
     const { generatorSystemPrompt } = await import('../prompts/generator.prompt.js');
     const { generatorUserPrompt } = await import('../prompts/generator.prompt.js');
-    
+
     const messages = [
       { role: 'system' as const, content: generatorSystemPrompt },
       { role: 'user' as const, content: generatorUserPrompt(session.requirement_content || '', undefined, conversationSummary) }
@@ -177,9 +183,9 @@ export const generateSolution = async (req: Request, res: Response) => {
     logger.info('Solution stream completed', { requirementId, contentLength: fullContent.length });
 
   } catch (error) {
-    logger.error('Generate solution failed', { 
+    logger.error('Generate solution failed', {
       error: error instanceof Error ? error.message : 'Unknown',
-      requirementId 
+      requirementId
     });
     res.status(500).json({
       error: 'Internal Server Error',
@@ -190,11 +196,12 @@ export const generateSolution = async (req: Request, res: Response) => {
 };
 
 export const getConversationHistory = async (req: Request, res: Response) => {
+  const userId = getUserId(req);
   const { requirementId } = req.params;
 
-  logger.info('Get conversation history', { requirementId });
+  logger.info('Get conversation history', { userId, requirementId });
 
-  const session = dbService.getSession(requirementId);
+  const session = dbService.getSession(userId, requirementId);
   if (!session) {
     res.status(404).json({
       error: 'Not Found',
@@ -204,7 +211,7 @@ export const getConversationHistory = async (req: Request, res: Response) => {
     return;
   }
 
-  const messages = dbService.getMessages(requirementId);
+  const messages = dbService.getMessages(userId, requirementId);
 
   res.json({
     requirementId,

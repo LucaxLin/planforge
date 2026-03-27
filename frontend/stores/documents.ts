@@ -114,8 +114,8 @@ export const useDocumentStore = defineStore('document', {
       }
     },
 
-    getTimeRemaining(updatedAt: number): string {
-      const remaining = updatedAt + 24 * 60 * 60 * 1000 - Date.now()
+    getTimeRemaining(createdAt: number): string {
+      const remaining = createdAt + 24 * 60 * 60 * 1000 - Date.now()
       if (remaining <= 0) return '已过期'
 
       const hours = Math.floor(remaining / (1000 * 60 * 60))
@@ -125,6 +125,12 @@ export const useDocumentStore = defineStore('document', {
         return `${hours}小时${minutes}分钟`
       }
       return `${minutes}分钟`
+    },
+
+    clearAll() {
+      this.documents = []
+      this.loading = false
+      this.error = null
     },
   },
 })

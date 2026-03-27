@@ -147,6 +147,7 @@ export const api = {
       const baseUrl = getApiBase()
       return fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'x-api-provider': apiConfig.provider,

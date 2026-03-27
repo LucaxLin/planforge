@@ -160,13 +160,19 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useThemeStore } from '~/stores/theme'
+import { useConversationStore } from '~/stores/conversation'
+import { useDocumentStore } from '~/stores/documents'
 import { api } from '~/utils/api'
 
 const themeStore = useThemeStore()
+const conversationStore = useConversationStore()
+const documentStore = useDocumentStore()
 const router = useRouter()
 const showMobileMenu = ref(false)
 const showUserMenu = ref(false)
 const currentUser = ref<{ id: string; email: string; created_at: number } | null>(null)
+
+let previousUserId: string | null = null
 
 const toggleTheme = () => {
   themeStore.toggle()
@@ -176,10 +182,23 @@ const checkAuth = async () => {
   try {
     const data = await api.auth.getCurrentUser()
     if (data.isLoggedIn && data.user) {
+      if (previousUserId && previousUserId !== data.user.id) {
+        conversationStore.clearAll()
+        documentStore.clearAll()
+      }
       currentUser.value = data.user
+      previousUserId = data.user.id
+    } else {
+      conversationStore.clearAll()
+      documentStore.clearAll()
+      currentUser.value = null
+      previousUserId = null
     }
   } catch (error) {
+    conversationStore.clearAll()
+    documentStore.clearAll()
     currentUser.value = null
+    previousUserId = null
   }
 }
 
@@ -196,7 +215,10 @@ const handleLogout = async () => {
   } catch (error) {
     console.error('Logout error:', error)
   } finally {
+    conversationStore.clearAll()
+    documentStore.clearAll()
     currentUser.value = null
+    previousUserId = null
     showUserMenu.value = false
     router.push('/login')
   }
